@@ -1,1602 +1,429 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+const AP="FAFT2026!admin",SP="7743",MP="truck2026";
+const G=`
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#FAFAF8;--card:#FFFFFF;--ink:#1A1613;--sub:#6B6560;--mute:#9C9690;--line:#E8E4DF;--tint:#F4F1ED;--accent:#D4482C;--accentL:#FFF0ED;--sans:'Inter',system-ui,sans-serif;--serif:'Fraunces',Georgia,serif;--mono:'JetBrains Mono',monospace}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--accentL);color:var(--accent)}
+button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit}
+input,textarea,select{font-family:var(--sans);outline:none}
+input:focus,textarea:focus{border-color:var(--accent)!important}
+a{text-decoration:none;color:inherit}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-33.33%)}}
+.ani{animation:fadeUp .5s ease both}
+.d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}
 
-// ══════════════════════════════════════════════════════════════
-// BRYPTO CALL ENGINE v4 — Phase 1 (Clean Build)
-// ══════════════════════════════════════════════════════════════
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+`;
 
-
-
-const COLORS = {
-  bg: "#060709",
-  panel: "#0d0f16",
-  card: "#11131e",
-  border: "#1a1d2d",
-  bd2: "#22263a",
-  text: "#e3e6f0",
-  sub: "#9ea3bc",
-  muted: "#6c7190",
-  dim: "#3e4361",
-  long: "#00dfa3",
-  longBg: "rgba(0,223,163,.07)",
-  longBdr: "rgba(0,223,163,.18)",
-  short: "#ff3868",
-  shortBg: "rgba(255,56,104,.07)",
-  shortBdr: "rgba(255,56,104,.18)",
-  brand: "#1cb8e0",
-  brandBg: "rgba(28,184,224,.08)",
-  brandBdr: "rgba(28,184,224,.2)",
-  gold: "#f0b030",
-  goldBg: "rgba(240,176,48,.08)",
-  blue: "#5865f2",
-  info: "#3b82f6",
-  infoBg: "rgba(59,130,246,.08)",
-};
-
-const FONT = "'DM Sans', system-ui, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', Consolas, monospace";
-
-function BryptoLogo({ size }) {
-  const s = size || 28;
-  return (
-    <svg width={s} height={s} viewBox="0 0 40 40" style={{ borderRadius: s > 20 ? "50%" : 4, display: "block" }}>
-      <rect width="40" height="40" fill="#000"/>
-      <defs>
-        <linearGradient id="iceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00e5ff"/>
-          <stop offset="50%" stopColor="#1cb8e0"/>
-          <stop offset="100%" stopColor="#0088cc"/>
-        </linearGradient>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="1.2" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <text x="20" y="30" textAnchor="middle" fontFamily="Georgia, serif" fontSize="28" fontWeight="900" fill="url(#iceGrad)" filter="url(#glow)" style={{ letterSpacing: "-1px" }}>B</text>
-    </svg>
-  );
+function useRouter(){
+  const[r,setR]=useState(window.location.hash.slice(1)||"/");
+  useEffect(()=>{
+    const h=()=>{setR(window.location.hash.slice(1)||"/");window.scrollTo(0,0)};
+    window.addEventListener("hashchange",h);
+    return()=>window.removeEventListener("hashchange",h);
+  },[]);
+  useEffect(()=>{
+    const titles={"/":" | Richmond's Food Truck Booking Network","/submit":" | Submit an Event","/join":" | Join as a Vendor","/access":" | Verified Vendor Access","/member":" | Vendor Portal","/admin":" | Admin"};
+    document.title="Find A Food Truck RVA"+(titles[r]||"");
+  },[r]);
+  return{route:r,go:p=>{window.location.hash=p}}
 }
 
+const W=({children,style={},...p})=><div style={{maxWidth:1080,margin:"0 auto",padding:"0 20px",...style}} {...p}>{children}</div>;
 
-// ── Helpers ──
-function formatPrice(p) {
-  const n = parseFloat(p);
-  if (isNaN(n)) return "—";
-  if (n >= 10000) return n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (n >= 100) return n.toFixed(2);
-  if (n >= 1) return n.toFixed(4);
-  return n >= 0.001 ? n.toFixed(6) : n.toFixed(8);
+function Btn({children,onClick,variant="primary",full,size="md"}){
+  const s={display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:8,fontWeight:500,fontFamily:"var(--sans)",transition:"all .15s",letterSpacing:"-.01em",width:full?"100%":undefined};
+  const sz={sm:{fontSize:13,padding:"9px 18px"},md:{fontSize:14,padding:"11px 22px"},lg:{fontSize:15,padding:"13px 28px"}}[size];
+  const v={
+    primary:{...s,...sz,background:"var(--ink)",color:"#fff"},
+    accent:{...s,...sz,background:"var(--accent)",color:"#fff"},
+    outline:{...s,...sz,background:"var(--card)",color:"var(--ink)",border:"1px solid var(--mute)"},
+    ghost:{...s,...sz,color:"var(--sub)",border:"1px solid var(--line)"},
+  }[variant];
+  return<button onClick={onClick} style={v}>{children}</button>
 }
 
-function pctDiff(a, b) {
-  const x = parseFloat(a), y = parseFloat(b);
-  if (!x || !y) return null;
-  return (Math.abs(y - x) / x * 100).toFixed(1);
+function Input({label,value,onChange,placeholder,type="text",textarea,rows=3}){
+  const s={width:"100%",padding:"11px 14px",borderRadius:8,border:"1px solid var(--line)",fontSize:14,color:"var(--ink)",background:"var(--card)",marginBottom:14};
+  return<div>
+    {label&&<label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--sub)",marginBottom:5,letterSpacing:".02em"}}>{label}</label>}
+    {textarea?<textarea value={value} onChange={onChange} placeholder={placeholder} style={{...s,resize:"vertical",fontFamily:"var(--sans)"}} rows={rows}/>
+    :<input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{...s,fontFamily:"var(--sans)"}}/>}
+  </div>
 }
 
-function calcRR(entry, sl, tp) {
-  const e = parseFloat(entry), s = parseFloat(sl), t = parseFloat(tp);
-  if (!e || !s || !t) return null;
-  const risk = Math.abs(e - s);
-  return risk === 0 ? null : (Math.abs(t - e) / risk).toFixed(1);
+function Chip({children,active,onClick}){
+  return<button onClick={onClick} style={{padding:"7px 13px",borderRadius:8,fontSize:12,fontWeight:500,border:"1px solid",borderColor:active?"var(--accent)":"var(--line)",background:active?"var(--accent)":"var(--card)",color:active?"#fff":"var(--sub)",transition:"all .15s"}}>{children}</button>
 }
 
-function getRTarget(entry, sl, mult, dir) {
-  const e = parseFloat(entry), s = parseFloat(sl);
-  if (!e || !s) return "";
-  const risk = Math.abs(e - s);
-  return dir === "LONG" ? (e + risk * mult).toString() : (e - risk * mult).toString();
-}
-
-function weightedAvgEntry(entryPrice, entryPct, dcas) {
-  // Build full list: main entry + all DCA levels
-  const allEntries = [];
-  const ep = parseFloat(entryPrice), epc = parseFloat(entryPct);
-  if (ep && epc) allEntries.push({ price: ep, pct: epc });
-  dcas.forEach(d => {
-    const p = parseFloat(d.price), pc = parseFloat(d.pct);
-    if (p && pc) allEntries.push({ price: p, pct: pc });
-  });
-  if (allEntries.length < 1) return null;
-  const totalPct = allEntries.reduce((s, e) => s + e.pct, 0);
-  if (totalPct === 0) return null;
-  return allEntries.reduce((s, e) => s + (e.price * e.pct / totalPct), 0);
-}
-
-// Helper: check if allocations sum to ~100
-function allocationTotal(entryPct, dcas) {
-  let total = parseFloat(entryPct) || 0;
-  dcas.forEach(d => { total += parseFloat(d.pct) || 0; });
-  return total;
-}
-
-// Weighted realized R accounting for partial trims
-function weightedRealizedR(entry, sl, targets) {
-  const e = parseFloat(entry), s = parseFloat(sl);
-  if (!e || !s) return null;
-  const risk = Math.abs(e - s);
-  if (risk === 0) return null;
-
-  const validTargets = targets.filter(t => t.price && t.trim);
-  if (!validTargets.length) return null;
-
-  let totalTrimPct = 0;
-  let weightedR = 0;
-  validTargets.forEach(t => {
-    const trimPct = parseFloat(t.trim) || 0;
-    const tgtR = Math.abs(parseFloat(t.price) - e) / risk;
-    weightedR += tgtR * (trimPct / 100);
-    totalTrimPct += trimPct;
-  });
-
-  if (totalTrimPct < 0.5) return null;
-  // Scale to actual trim coverage
-  return (weightedR).toFixed(2);
-}
-
-function makeTradeId() {
-  return "BRY-" + new Date().getFullYear() + "-" + String(Math.floor(Math.random() * 9999)).padStart(4, "0");
-}
-
-// ── Status definitions ──
-const STATUSES = {
-  pending: { label: "Pending", color: COLORS.gold, bg: COLORS.goldBg, icon: "⏳" },
-  active: { label: "Active", color: COLORS.info, bg: COLORS.infoBg, icon: "🔵" },
-  partial: { label: "Partial TP", color: COLORS.long, bg: COLORS.longBg, icon: "✅" },
-  break_even: { label: "Break Even", color: COLORS.sub, bg: "rgba(160,165,190,.06)", icon: "🔒" },
-  closed: { label: "Closed", color: COLORS.long, bg: COLORS.longBg, icon: "💰" },
-  invalidated: { label: "Invalid", color: COLORS.short, bg: COLORS.shortBg, icon: "❌" },
-  stopped: { label: "Stopped", color: COLORS.short, bg: COLORS.shortBg, icon: "🛑" },
-};
-
-// ── Micro Components ──
-
-function StatusBadge({ status }) {
-  const s = STATUSES[status] || STATUSES.pending;
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
-      background: s.bg, color: s.color, border: `1px solid ${s.color}15`,
-      display: "inline-flex", alignItems: "center", gap: 3, fontFamily: FONT,
-    }}>
-      <span style={{ fontSize: 9 }}>{s.icon}</span>{s.label}
-    </span>
-  );
-}
-
-function TextInput({ label, value, onChange, placeholder, type, mono, suffix, small, style: sx, autoFocus, flex }) {
-  return (
-    <div style={{ flex: flex || 1, minWidth: 0, ...sx }}>
-      {label && (
-        <div style={{
-          fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4,
-          letterSpacing: ".7px", textTransform: "uppercase", fontFamily: FONT,
-        }}>{label}</div>
+function Nav({go,route}){
+  const[open,setOpen]=useState(false);
+  return<>
+    <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:100,background:"rgba(250,250,248,.95)",backdropFilter:"blur(12px)",borderBottom:"1px solid var(--line)"}}>
+      <W style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:54,padding:"0 20px"}}>
+        <div onClick={()=>{go("/");setOpen(false)}} style={{cursor:"pointer",display:"flex",alignItems:"baseline",gap:5}}>
+          <span style={{fontFamily:"var(--serif)",fontSize:16,fontWeight:400,fontStyle:"italic"}}>find a</span>
+          <span style={{fontFamily:"var(--serif)",fontSize:16,fontWeight:500,color:"var(--accent)"}}>food truck</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:28}} className="dsk">
+          {[["Submit Event","/submit"],["Join as Vendor","/join"],["Verified Access","/access"]].map(([l,p])=>
+            <span key={p} onClick={()=>go(p)} style={{fontSize:13,fontWeight:500,color:route===p?"var(--ink)":"var(--mute)",cursor:"pointer",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color="var(--ink)"} onMouseLeave={e=>{if(route!==p)e.currentTarget.style.color="var(--mute)"}}>{l}</span>
+          )}
+        </div>
+        <div style={{display:"flex",gap:8}} className="dsk">
+          <Btn variant="ghost" size="sm" onClick={()=>go("/member")}>Vendor Login</Btn>
+          <Btn variant="accent" size="sm" onClick={()=>go("/submit")}>Submit Event</Btn>
+        </div>
+        <button className="mobtn" onClick={()=>setOpen(!open)} style={{fontSize:20,padding:4}}>
+          {open?"✕":"☰"}
+        </button>
+      </W>
+    </nav>
+    {open&&<div style={{position:"fixed",inset:0,top:54,background:"var(--bg)",zIndex:99,padding:"16px 20px"}}>
+      {[["Submit an Event","/submit"],["Join as Vendor","/join"],["Verified Access","/access"],["Vendor Login","/member"]].map(([l,p])=>
+        <button key={p} onClick={()=>{go(p);setOpen(false)}} style={{display:"block",width:"100%",padding:"16px 0",fontSize:16,fontWeight:500,color:route===p?"var(--accent)":"var(--ink)",textAlign:"left",borderBottom:"1px solid var(--line)",transition:"color .15s"}}>{l}</button>
       )}
-      <div style={{ position: "relative" }}>
-        <input
-          autoFocus={autoFocus}
-          type={type || "text"}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder || ""}
-          style={{
-            width: "100%",
-            padding: small ? "6px 9px" : "8px 12px",
-            paddingRight: suffix ? 32 : 12,
-            background: COLORS.bg,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 6,
-            color: COLORS.text,
-            fontSize: small ? 12 : 13,
-            fontFamily: mono ? MONO : FONT,
-            outline: "none",
-            transition: "border .12s, box-shadow .12s",
-          }}
-          onFocus={e => {
-            e.target.style.borderColor = COLORS.brand;
-            e.target.style.boxShadow = `0 0 0 2px ${COLORS.brandBg}`;
-          }}
-          onBlur={e => {
-            e.target.style.borderColor = COLORS.border;
-            e.target.style.boxShadow = "none";
-          }}
-        />
-        {suffix && (
-          <span style={{
-            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-            fontSize: 9.5, color: COLORS.dim, fontFamily: MONO,
-          }}>{suffix}</span>
+    </div>}
+    <style>{`
+      .mobtn{display:none}
+      @media(max-width:768px){.dsk{display:none!important}.mobtn{display:block!important}}
+    `}</style>
+  </>
+}
+
+function HomePage({go}){
+  return<div style={{paddingTop:54}}>
+    {/* Hero */}
+    <section style={{padding:"clamp(60px,14vw,120px) 20px clamp(48px,10vw,70px)",textAlign:"center"}}>
+      <W style={{maxWidth:640,padding:0}}>
+        <p className="ani" style={{fontSize:12,fontWeight:500,color:"var(--accent)",letterSpacing:".08em",marginBottom:16}}>RICHMOND, VIRGINIA</p>
+        <h1 className="ani d1" style={{fontSize:"clamp(28px,6vw,50px)",fontWeight:300,fontFamily:"var(--serif)",lineHeight:1.2,letterSpacing:"-.02em",margin:"0 0 20px"}}>The food truck booking network for <em style={{fontWeight:400,color:"var(--accent)"}}>Richmond</em>.</h1>
+        <p className="ani d2" style={{fontSize:"clamp(14px,2.5vw,16px)",color:"var(--sub)",lineHeight:1.7,maxWidth:420,margin:"0 auto 32px",fontWeight:300}}>Submit event requests. Get matched with verified vendors. Book directly — no middlemen, no spam.</p>
+        <div className="ani d3" style={{display:"flex",flexDirection:"column",gap:10,maxWidth:340,margin:"0 auto"}}>
+          <Btn variant="accent" size="lg" full onClick={()=>go("/submit")}>Submit an Event</Btn>
+          <Btn variant="outline" size="lg" full onClick={()=>go("/join")}>Join as a Vendor</Btn>
+        </div>
+        <p className="ani d3" style={{fontSize:12,color:"var(--mute)",marginTop:18,fontStyle:"italic",fontFamily:"var(--serif)"}}>Serving corporate events, weddings, festivals, and everything in between.</p>
+      </W>
+    </section>
+
+    {/* Ticker */}
+    <div style={{borderTop:"1px solid var(--line)",borderBottom:"1px solid var(--line)",padding:"10px 0",overflow:"hidden"}}>
+      <div style={{display:"flex",animation:"scroll 35s linear infinite",whiteSpace:"nowrap"}}>
+        {[0,1,2].map(j=><div key={j} style={{display:"flex"}}>
+          {["BBQ & Smoked Meats","Mexican / Latin","Southern / Soul Food","Asian Fusion","Breakfast & Brunch","Beverages & Dessert","Catering","Weddings","Corporate Events","Festivals"].map((t,i)=>
+            <span key={i} style={{padding:"0 24px",fontSize:11,color:"var(--mute)",fontFamily:"var(--mono)"}}>{t}</span>
+          )}
+        </div>)}
+      </div>
+    </div>
+
+    {/* How It Works */}
+    <section style={{padding:"clamp(56px,10vw,96px) 20px"}}>
+      <W style={{padding:0}}>
+        <p className="ani" style={{fontSize:12,fontWeight:500,color:"var(--mute)",letterSpacing:".08em",marginBottom:10}}>HOW IT WORKS</p>
+        <h2 className="ani d1" style={{fontSize:"clamp(24px,4vw,32px)",fontWeight:300,fontFamily:"var(--serif)",marginBottom:"clamp(32px,5vw,52px)"}}>Simple for hosts.<br/>Valuable for vendors.</h2>
+        <div className="ani d2" style={{display:"flex",flexDirection:"column",gap:1,background:"var(--line)",borderRadius:12,overflow:"hidden"}}>
+          {[["For Event Hosts","Tell us your date, location, headcount, and requirements. We match you with verified vendors.","Submit an Event →","/submit"],
+            ["For Vendors","Get listed for free. Receive qualified booking opportunities from hosts across Richmond.","Join the Network →","/join"],
+            ["Direct Booking","No platform fees. No middlemen. Hosts and vendors connect directly.","Learn More →","/access"]
+          ].map(([t,d,c,l])=><div key={t} style={{background:"var(--card)",padding:"clamp(24px,3.5vw,36px)"}}>
+            <h3 style={{fontSize:14,fontWeight:600,marginBottom:8}}>{t}</h3>
+            <p style={{fontSize:13,color:"var(--sub)",lineHeight:1.7,marginBottom:14,fontWeight:300}}>{d}</p>
+            <span onClick={()=>go(l)} style={{fontSize:13,fontWeight:500,color:"var(--accent)",cursor:"pointer",transition:"opacity .15s"}}>{c}</span>
+          </div>)}
+        </div>
+      </W>
+    </section>
+
+    {/* Status */}
+    <section style={{padding:"clamp(48px,8vw,68px) 20px",borderTop:"1px solid var(--line)",background:"var(--tint)"}}>
+      <W style={{padding:0}}>
+        <p style={{fontSize:12,fontWeight:500,color:"var(--mute)",letterSpacing:".08em",marginBottom:10}}>CURRENT STATUS</p>
+        <h2 style={{fontSize:"clamp(22px,3.5vw,26px)",fontWeight:300,fontFamily:"var(--serif)",marginBottom:24}}>Now accepting</h2>
+        <div style={{display:"flex",gap:"clamp(16px,3vw,36px) clamp(24px,5vw,44px)",flexWrap:"wrap"}}>
+          {[["Event submissions","Active"],["Vendor applications","Active"],["Verified Vendor waitlist","Open"]].map(([l,s])=>
+            <div key={l} style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:6,height:6,borderRadius:99,background:s==="Active"?"#2D8C3C":"var(--accent)",flexShrink:0}}/>
+              <div><span style={{fontSize:11,fontWeight:500,color:s==="Active"?"#2D8C3C":"var(--accent)",fontFamily:"var(--mono)"}}>{s}</span><span style={{fontSize:12,color:"var(--sub)",marginLeft:6}}>{l}</span></div>
+            </div>
+          )}
+        </div>
+      </W>
+    </section>
+
+    {/* Verified */}
+    <section style={{padding:"clamp(60px,10vw,100px) 20px",background:"var(--ink)",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:"-20%",right:"-10%",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(212,72,44,.07),transparent 60%)",filter:"blur(40px)"}}/>
+      <W style={{maxWidth:560,textAlign:"center",position:"relative",padding:0}}>
+        <p className="ani" style={{fontSize:11,fontWeight:500,color:"rgba(255,255,255,.3)",letterSpacing:".08em",marginBottom:12}}>VERIFIED VENDOR ACCESS</p>
+        <h2 className="ani d1" style={{fontSize:"clamp(22px,4vw,28px)",fontWeight:300,fontFamily:"var(--serif)",color:"#fff",margin:"0 0 14px"}}>Priority placement. Direct lead access. Category protection.</h2>
+        <p className="ani d2" style={{fontSize:14,color:"rgba(255,255,255,.5)",lineHeight:1.7,marginBottom:12,fontWeight:300}}>First access to booking requests, protected category placement, and featured visibility across the network.</p>
+        <p className="ani d2" style={{fontSize:13,color:"rgba(255,255,255,.35)",lineHeight:1.7,marginBottom:28,fontStyle:"italic",fontFamily:"var(--serif)"}}>Limited to 1–2 vendors per cuisine. When your slot is full, your competition is capped.</p>
+        <div className="ani d3" style={{marginTop:4}}><Btn variant="accent" size="lg" onClick={()=>go("/access")}>Join the Waitlist</Btn></div>
+      </W>
+    </section>
+
+    {/* CTA */}
+    <section style={{padding:"clamp(56px,10vw,88px) 20px",textAlign:"center",borderTop:"1px solid var(--line)"}}>
+      <W style={{maxWidth:460,padding:0}}>
+        <h2 className="ani" style={{fontSize:"clamp(22px,4vw,26px)",fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 12px"}}>Richmond's food truck scene deserves better infrastructure.</h2>
+        <p className="ani d1" style={{fontSize:14,color:"var(--sub)",lineHeight:1.7,fontWeight:300,marginBottom:24}}>We're building it. Get in early — whether you're hosting an event or running a truck.</p>
+        <div className="ani d2" style={{display:"flex",flexDirection:"column",gap:10,maxWidth:320,margin:"0 auto"}}>
+          <Btn variant="accent" full onClick={()=>go("/submit")}>Submit an Event</Btn>
+          <Btn variant="outline" full onClick={()=>go("/join")}>Join as a Vendor</Btn>
+        </div>
+      </W>
+    </section>
+
+    {/* Numbers */}
+    <section style={{padding:"clamp(48px,8vw,64px) 20px",borderTop:"1px solid var(--line)"}}>
+      <W style={{display:"flex",justifyContent:"center",gap:"clamp(28px,6vw,64px)",padding:0,flexWrap:"wrap"}}>
+        {[["4,100+","Network members"],["$800–2,500","Avg. booking"],["10","Verified vendor slots"]].map(([v,l])=>
+          <div key={l} style={{textAlign:"center"}}>
+            <div style={{fontSize:"clamp(22px,4vw,30px)",fontWeight:300,fontFamily:"var(--serif)",letterSpacing:"-.02em"}}>{v}</div>
+            <div style={{fontSize:10,color:"var(--mute)",marginTop:4,fontFamily:"var(--mono)"}}>{l}</div>
+          </div>
         )}
-      </div>
-    </div>
-  );
+      </W>
+    </section>
+  </div>
 }
 
-function PillButton({ children, active, color, onClick, small }) {
-  const c = color || COLORS.brand;
-  const bgMap = {
-    [COLORS.long]: COLORS.longBg,
-    [COLORS.short]: COLORS.shortBg,
-    [COLORS.gold]: COLORS.goldBg,
-  };
-  return (
-    <button onClick={onClick} style={{
-      padding: small ? "3px 8px" : "4px 12px",
-      borderRadius: 16,
-      border: `1px solid ${active ? c + "40" : COLORS.border}`,
-      background: active ? (bgMap[c] || COLORS.brandBg) : "transparent",
-      color: active ? c : COLORS.muted,
-      fontSize: small ? 10 : 11.5,
-      fontWeight: 600,
-      cursor: "pointer",
-      fontFamily: FONT,
-      transition: "all .1s",
-      whiteSpace: "nowrap",
-    }}>{children}</button>
-  );
-}
-
-function ActionButton({ children, color, outline, small, full, disabled, onClick, style: sx }) {
-  const c = color || COLORS.brand;
-  const isLight = c === COLORS.long || c === COLORS.gold;
-  return (
-    <button
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-      style={{
-        padding: small ? "6px 12px" : "9px 20px",
-        background: disabled ? COLORS.border : outline ? "transparent" : c,
-        border: outline ? `1.5px solid ${disabled ? COLORS.border : c}` : "none",
-        borderRadius: 7,
-        color: disabled ? COLORS.dim : outline ? c : isLight ? "#060709" : "#fff",
-        fontSize: small ? 11 : 13,
-        fontWeight: 700,
-        cursor: disabled ? "not-allowed" : "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        transition: "all .1s",
-        fontFamily: FONT,
-        width: full ? "100%" : "auto",
-        justifyContent: "center",
-        opacity: disabled ? 0.4 : 1,
-        whiteSpace: "nowrap",
-        ...sx,
-      }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.transform = "translateY(-1px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = "none"; }}
-    >{children}</button>
-  );
-}
-
-function ToggleSwitch({ on, onToggle, label }) {
-  return (
-    <div onClick={onToggle} style={{
-      display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-      padding: "4px 0", userSelect: "none",
-    }}>
-      <div style={{
-        width: 30, height: 15, borderRadius: 8,
-        background: on ? COLORS.brand : COLORS.border,
-        transition: "background .15s", position: "relative", flexShrink: 0,
-      }}>
-        <div style={{
-          width: 11, height: 11, borderRadius: "50%",
-          background: on ? "#fff" : COLORS.dim,
-          position: "absolute", top: 2, left: on ? 17 : 2, transition: "all .15s",
-        }} />
-      </div>
-      <span style={{ fontSize: 12, color: on ? COLORS.text : COLORS.muted, fontWeight: 500, fontFamily: FONT }}>{label}</span>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
-// PREMIUM EMBED
-// ══════════════════════════════════════════════════════════════
-function PremiumEmbed({ call, fields }) {
-  const isLong = call.direction === "LONG";
-  const accent = isLong ? COLORS.long : COLORS.short;
-  const targets = (call.targets || []).filter(t => t.price);
-  const dcaList = (call.dcas || []).filter(d => d.price);
-  const wAvg = dcaList.length > 0 ? weightedAvgEntry(call.entry, call.entryPct, dcaList) : null;
-  const effectiveEntry = wAvg || parseFloat(call.entry);
-  const slPct = effectiveEntry ? pctDiff(effectiveEntry, call.sl) : null;
-  const maxRR = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, call.sl, targets[targets.length - 1].price) : null;
-  const st = STATUSES[call.status] || STATUSES.pending;
-  const updates = call.updates || [];
-
-  const discordBg = "#313338";
-  const embedBg = "#2b2d31";
-  const fieldColor = "#80848e";
-  const brightText = "#f2f3f5";
-  const dimText = "#5d616b";
-
-  return (
-    <div style={{ background: discordBg, borderRadius: 8, padding: "12px 12px 8px", fontFamily: "'gg sans', 'Noto Sans', Helvetica, Arial, sans-serif" }}>
-      {/* Bot message header */}
-      <div style={{ display: "flex", gap: 9, marginBottom: 6 }}>
-        <div style={{ flexShrink: 0 }}><BryptoLogo size={38} /></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, paddingTop: 2 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: brightText }}>Brypto</span>
-          <span style={{ fontSize: 9, padding: "1px 4px", borderRadius: 3, background: COLORS.blue, color: "#fff", fontWeight: 500, lineHeight: "14px" }}>BOT</span>
-          <span style={{ fontSize: 11, color: fieldColor, marginLeft: 2 }}>Today at {new Date().toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" })}</span>
+function FormPage({go,title,subtitle,children}){
+  return<div style={{paddingTop:54}}>
+    <section style={{padding:"clamp(32px,5vw,56px) 20px clamp(48px,8vw,80px)"}}>
+      <W style={{maxWidth:540,padding:0}}>
+        <div className="ani" style={{marginBottom:24}}>
+          <span onClick={()=>go("/")} style={{fontSize:13,color:"var(--mute)",cursor:"pointer",display:"inline-block",marginBottom:10}}>{"←"} Back</span>
+          <h1 style={{fontSize:"clamp(22px,4vw,28px)",fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 4px"}}>{title}</h1>
+          {subtitle&&<p style={{fontSize:13,color:"var(--sub)"}}>{subtitle}</p>}
         </div>
-      </div>
+        {children}
+      </W>
+    </section>
+  </div>
+}
 
-      {/* Embed */}
-      <div style={{ marginLeft: 47 }}>
-        <div style={{ display: "flex", borderRadius: 4, overflow: "hidden", background: embedBg, border: "1px solid #26282e" }}>
-          {/* Accent bar */}
-          <div style={{
-            width: 4, flexShrink: 0,
-            background: call.status === "invalidated" || call.status === "stopped" ? COLORS.short
-              : call.status === "closed" || call.status === "partial" ? COLORS.long
-              : isLong ? COLORS.long : COLORS.short,
-          }} />
-
-          <div style={{ padding: "10px 14px 11px", flex: 1, minWidth: 0 }}>
-            {/* Author line */}
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
-              <BryptoLogo size={16} />
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#dbdee1" }}>Brypto Call Engine</span>
-            </div>
-
-            {/* Title + status */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: brightText, display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ color: accent, fontSize: 12 }}>{isLong ? "▲" : "▼"}</span>
-                {call.pair || "BTC/USDT"}
-                <span style={{
-                  fontSize: 9.5, fontWeight: 700, padding: "2px 5px", borderRadius: 3,
-                  background: isLong ? COLORS.longBg : COLORS.shortBg, color: accent,
-                }}>{call.direction}</span>
-                {call.orderType === "limit" && (
-                  <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 4px", borderRadius: 3, background: "rgba(255,255,255,.04)", color: fieldColor }}>LIMIT</span>
-                )}
-              </div>
-              <span style={{
-                fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 3,
-                background: st.bg, color: st.color,
-              }}>{st.icon} {st.label}</span>
-            </div>
-
-            {/* Meta */}
-            <div style={{ fontSize: 10.5, color: fieldColor, marginBottom: 10 }}>
-              {call.analyst || "Analyst"} · {new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}
-              {fields.timeframe && call.timeframe ? ` · ${call.timeframe}` : ""}
-              {fields.tags && call.tag ? ` · ${call.tag}` : ""}
-              {call.tradeId ? ` · ${call.tradeId}` : ""}
-            </div>
-
-            {/* Entry / SL Grid */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: dcaList.length > 0 && wAvg ? "1fr 1fr 1fr" : "1fr 1fr",
-              gap: 0, marginBottom: 10, borderRadius: 4, overflow: "hidden",
-              border: "1px solid #3a3c43",
-            }}>
-              <div style={{ padding: "7px 10px", background: "rgba(255,255,255,.02)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 2 }}>ENTRY{dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: brightText, fontFamily: "Consolas, monospace", letterSpacing: "-.3px" }}>
-                  {call.entry ? formatPrice(call.entry) : "—"}
-                </div>
-              </div>
-              {dcaList.length > 0 && wAvg && (
-                <div style={{ padding: "7px 10px", background: "rgba(124,106,240,.03)", borderLeft: "1px solid #3a3c43" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 2 }}>AVG ENTRY</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#a99bf5", fontFamily: "Consolas, monospace" }}>{formatPrice(wAvg)}</div>
-                </div>
-              )}
-              <div style={{ padding: "7px 10px", background: "rgba(255,56,104,.025)", borderLeft: "1px solid #3a3c43" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 2 }}>STOP LOSS</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.short, fontFamily: "Consolas, monospace" }}>
-                    {call.sl ? formatPrice(call.sl) : "—"}
-                  </span>
-                  {slPct && <span style={{ fontSize: 9.5, color: COLORS.short, opacity: 0.6, fontWeight: 600 }}>-{slPct}%</span>}
-                </div>
-              </div>
-            </div>
-
-            {/* Badges */}
-            {((fields.leverage && call.leverage) || dcaList.length > 0 || call.definedRisk) && (
-              <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
-                {call.definedRisk && (
-                  <span style={{ padding: "3px 8px", borderRadius: 3, fontSize: 10, fontWeight: 700, background: COLORS.shortBg, color: COLORS.short }}>
-                    🎯 Risk: {call.definedRisk}{call.riskUnit === "pct" ? "% portfolio" : "R"}
-                  </span>
-                )}
-                {fields.leverage && call.leverage && (
-                  <span style={{ padding: "3px 8px", borderRadius: 3, fontSize: 10, fontWeight: 700, background: COLORS.goldBg, color: COLORS.gold }}>
-                    ⚡ {call.leverage}x
-                  </span>
-                )}
-                {dcaList.length > 0 && (
-                  <span style={{ padding: "3px 8px", borderRadius: 3, fontSize: 10, fontWeight: 600, background: COLORS.brandBg, color: COLORS.brand }}>
-                    DCA: {dcaList.length} level{dcaList.length > 1 ? "s" : ""}
-                    {(() => {
-                      const total = allocationTotal(call.entryPct, dcaList);
-                      if (total < 99.5) return ` · ${Math.round(total)}% filled`;
-                      return "";
-                    })()}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* DCA Detail */}
-            {fields.dca && dcaList.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 5 }}>POSITION ALLOCATION</div>
-                {/* Main entry as first level */}
-                {call.entry && call.entryPct && (
-                  <div style={{
-                    display: "flex", justifyContent: "space-between", padding: "3px 8px",
-                    borderRadius: 3, background: "rgba(0,223,163,.03)", marginBottom: 2,
-                    borderLeft: `2px solid ${COLORS.long}30`,
-                  }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.long, width: 10 }}>E</span>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, fontFamily: "Consolas, monospace", color: "#dddfe4" }}>{formatPrice(call.entry)}</span>
-                      <span style={{ fontSize: 9.5, color: fieldColor, fontStyle: "italic" }}>entry</span>
-                    </div>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.long }}>{call.entryPct}%</span>
-                  </div>
-                )}
-                {dcaList.map((d, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between", padding: "3px 8px",
-                    borderRadius: 3, background: "rgba(255,255,255,.015)", marginBottom: 2,
-                  }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: fieldColor, width: 10 }}>{i + 1}</span>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, fontFamily: "Consolas, monospace", color: "#dddfe4" }}>{formatPrice(d.price)}</span>
-                    </div>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.brand }}>{d.pct}%</span>
-                  </div>
-                ))}
-                {/* Partial position note */}
-                {(() => {
-                  const entryOnly = parseFloat(call.entryPct) || 0;
-                  if (entryOnly < 99.5 && dcaList.length > 0 && effectiveEntry) {
-                    // If only entry fills (no DCAs)
-                    const entryOnlyR = calcRR(call.entry, call.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
-                    return (
-                      <div style={{ fontSize: 9.5, color: fieldColor, padding: "3px 8px", marginTop: 3, fontStyle: "italic" }}>
-                        💡 Entry only ({entryOnly}%): R = {entryOnlyR || "—"} · Full fill: R = {maxRR || "—"}
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-            )}
-
-            {/* Targets */}
-            {targets.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 5 }}>TARGETS</div>
-                {targets.map((t, i) => {
-                  const r = calcRR(effectiveEntry || call.entry, call.sl, t.price);
-                  const tp = pctDiff(effectiveEntry || call.entry, t.price);
-                  const isLast = i === targets.length - 1 && targets.length > 1;
-                  const isHit = t.hit;
-                  return (
-                    <div key={i} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "4px 8px", borderRadius: 3, marginBottom: 2,
-                      background: isHit ? "rgba(0,223,163,.05)" : isLast ? (isLong ? "rgba(0,223,163,.03)" : "rgba(255,56,104,.03)") : "rgba(255,255,255,.015)",
-                      borderLeft: `2px solid ${isHit ? COLORS.long : isLast ? accent : "transparent"}`,
-                      opacity: isHit ? 0.65 : 1,
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, color: isHit ? COLORS.long : isLast ? accent : fieldColor, width: 11, textAlign: "center" }}>
-                          {isHit ? "✓" : isLast && targets.length > 1 ? "★" : i + 1}
-                        </span>
-                        <span style={{
-                          fontSize: 13, fontWeight: 600, fontFamily: "Consolas, monospace",
-                          color: isHit ? COLORS.long : isLast ? accent : "#dddfe4",
-                          textDecoration: isHit ? "line-through" : "none",
-                        }}>{formatPrice(t.price)}</span>
-                        {tp && <span style={{ fontSize: 9.5, color: isLong ? COLORS.long : "#dddfe4", opacity: 0.4 }}>+{tp}%</span>}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        {t.trim && <span style={{ fontSize: 9.5, fontWeight: 600, color: fieldColor }}>{t.trim}%</span>}
-                        {r && <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: MONO, color: parseFloat(r) >= 3 ? COLORS.long : parseFloat(r) >= 2 ? COLORS.gold : fieldColor }}>{r}R</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Chart */}
-            {(call.chartTv || call.chartImg) && (
-              <div style={{ marginBottom: 10 }}>
-                {call.chartImg && (
-                  <img
-                    src={call.chartImg}
-                    alt="Chart"
-                    style={{
-                      width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 4,
-                      marginBottom: 4, border: "1px solid #3a3c43", display: "block",
-                    }}
-                    onError={e => { e.target.style.display = "none"; }}
-                  />
-                )}
-                {call.chartTv && (
-                  <div style={{
-                    padding: "4px 8px", borderRadius: 3, background: "rgba(255,255,255,.02)",
-                    border: "1px solid #3a3c43", display: "flex", alignItems: "center", gap: 5,
-                  }}>
-                    <span style={{ fontSize: 12 }}>📊</span>
-                    <span style={{ fontSize: 11, color: COLORS.info, fontWeight: 500 }}>View Chart on TradingView ↗</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Notes */}
-            {call.notes && (
-              <div style={{
-                fontSize: 11.5, color: "#a0a4b4", lineHeight: 1.4, padding: "5px 8px",
-                background: "rgba(255,255,255,.015)", borderRadius: 3,
-                borderLeft: `2px solid ${COLORS.brand}30`, marginBottom: 10, fontStyle: "italic",
-              }}>{call.notes}</div>
-            )}
-
-            {/* Invalidation */}
-            {fields.invalidation && call.invalidation && (
-              <div style={{
-                fontSize: 10.5, color: "#e85050", padding: "4px 8px",
-                background: "rgba(255,56,104,.03)", borderRadius: 3,
-                marginBottom: 10, borderLeft: `2px solid ${COLORS.short}30`,
-              }}>⚠ {call.invalidation}</div>
-            )}
-
-            {/* Updates timeline */}
-            {updates.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: fieldColor, letterSpacing: ".4px", marginBottom: 5 }}>UPDATES</div>
-                {updates.map((u, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 6, padding: "3px 8px",
-                    borderRadius: 3, background: "rgba(255,255,255,.015)",
-                    borderLeft: `2px solid ${u.color || COLORS.info}30`, marginBottom: 2,
-                  }}>
-                    <span style={{ fontSize: 10 }}>{u.icon}</span>
-                    <span style={{ fontSize: 11, color: "#b5b9c9", flex: 1 }}>{u.text}</span>
-                    <span style={{ fontSize: 9.5, color: dimText }}>{u.time}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Footer */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              paddingTop: 6, borderTop: "1px solid #3a3c43",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <BryptoLogo size={12} />
-                <span style={{ fontSize: 9.5, color: dimText }}>Brypto</span>
-              </div>
-              {maxRR && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {(() => {
-                    const wR = weightedRealizedR(effectiveEntry || call.entry, call.sl, call.targets);
-                    if (wR && call.targets.some(t => t.trim)) {
-                      return <span style={{ fontSize: 10, color: "#80848e" }}>Weighted: <span style={{ fontWeight: 700, color: parseFloat(wR) >= 2 ? COLORS.long : COLORS.gold }}>{wR}R</span></span>;
-                    }
-                    return null;
-                  })()}
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: parseFloat(maxRR) >= 3 ? COLORS.long : COLORS.gold }}>
-                    <span style={{ fontSize: 9, color: dimText, fontWeight: 500, marginRight: 2 }}>Max</span>{maxRR}R
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+function SubmitEvent({go}){
+  const[step,setStep]=useState(1);
+  const[f,sF]=useState({type:"",date:"",time:"",location:"",attendance:"",cuisine:"",budget:"",name:"",email:"",phone:"",org:"",notes:""});
+  const u=(k,v)=>sF({...f,[k]:v});
+  const types=["Corporate","Wedding","Private Party","Festival","Community","School / Nonprofit","Other"];
+  
+  if(step===4)return<div style={{paddingTop:54,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+    <div className="ani" style={{textAlign:"center",maxWidth:380}}>
+      <div style={{width:44,height:44,borderRadius:99,background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 20px",animation:"fadeUp .4s ease"}}>{"✓"}</div>
+      <h2 style={{fontSize:24,fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 10px"}}>Request submitted.</h2>
+      <p style={{fontSize:14,color:"var(--sub)",lineHeight:1.7,fontWeight:300}}>Verified vendors will be notified. Expect responses within 24 hours.</p>
+      <div style={{marginTop:28}}><Btn variant="outline" onClick={()=>go("/")}>Back to home</Btn></div>
     </div>
-  );
-}
+  </div>;
 
-// ══════════════════════════════════════════════════════════════
-// BASIC EMBED (External servers)
-// ══════════════════════════════════════════════════════════════
-function BasicEmbed({ call }) {
-  const isLong = call.direction === "LONG";
-  const accent = isLong ? COLORS.long : COLORS.short;
-  const targets = (call.targets || []).filter(t => t.price);
-  const eff = parseFloat(call.entry);
-  const maxRR = targets.length && eff ? calcRR(eff, call.sl, targets[targets.length - 1].price) : null;
-
-  return (
-    <div style={{ background: "#313338", borderRadius: 8, padding: "12px 12px 8px", fontFamily: "'gg sans', 'Noto Sans', Helvetica, Arial, sans-serif" }}>
-      <div style={{ display: "flex", gap: 9, marginBottom: 6 }}>
-        <div style={{ flexShrink: 0 }}><BryptoLogo size={38} /></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, paddingTop: 2 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#f2f3f5" }}>Trade Alert</span>
-          <span style={{ fontSize: 9, padding: "1px 4px", borderRadius: 3, background: COLORS.blue, color: "#fff", fontWeight: 500, lineHeight: "14px" }}>BOT</span>
-        </div>
-      </div>
-      <div style={{ marginLeft: 47 }}>
-        <div style={{ display: "flex", borderRadius: 4, overflow: "hidden", background: "#2b2d31", border: "1px solid #26282e" }}>
-          <div style={{ width: 4, background: accent, flexShrink: 0 }} />
-          <div style={{ padding: "10px 14px 11px", flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#f2f3f5", marginBottom: 8 }}>
-              {isLong ? "🟢" : "🔴"} {call.pair || "BTC/USDT"} — {call.direction}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: "#80848e", marginBottom: 2 }}>Entry</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#f2f3f5", fontFamily: "Consolas, monospace" }}>{call.entry ? formatPrice(call.entry) : "—"}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: "#80848e", marginBottom: 2 }}>Stop Loss</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.short, fontFamily: "Consolas, monospace" }}>{call.sl ? formatPrice(call.sl) : "—"}</div>
-              </div>
-            </div>
-            {targets.length > 0 && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: "#80848e", marginBottom: 4 }}>Targets</div>
-                {targets.map((t, i) => (
-                  <div key={i} style={{ fontSize: 12.5, color: "#dddfe4", fontFamily: "Consolas, monospace", padding: "2px 0" }}>
-                    {i + 1}. {formatPrice(t.price)}
-                  </div>
-                ))}
-              </div>
-            )}
-            {call.notes && <div style={{ fontSize: 11.5, color: "#a0a4b4", fontStyle: "italic", marginBottom: 8 }}>{call.notes}</div>}
-            <div style={{ fontSize: 9.5, color: "#5d616b", paddingTop: 6, borderTop: "1px solid #3a3c43" }}>
-              via Brypto{maxRR ? ` · R:R ${maxRR}:1` : ""}
-            </div>
-          </div>
-        </div>
-      </div>
+  return<FormPage go={go} title="Submit an Event" subtitle={`Step ${step} of 3`}>
+    <div style={{display:"flex",gap:3,marginBottom:24}}>{[1,2,3].map(s=><div key={s} style={{flex:1,height:2,borderRadius:2,background:s<=step?"var(--accent)":"var(--line)",transition:"background .3s"}}/>)}</div>
+    <div className="ani d1" style={{background:"var(--card)",borderRadius:10,border:"1px solid var(--line)",padding:"clamp(20px,3.5vw,32px)"}}>
+      {step===1&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Event Details</h3>
+        <div style={{marginBottom:14}}><label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--sub)",marginBottom:6}}>Event Type</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{types.map(t=><Chip key={t} active={f.type===t} onClick={()=>u("type",t)}>{t}</Chip>)}</div></div>
+        <Input label="Date" value={f.date} onChange={e=>u("date",e.target.value)} type="date"/>
+        <Input label="Time" value={f.time} onChange={e=>u("time",e.target.value)} placeholder="e.g. 4–8 PM"/>
+        <Input label="Location" value={f.location} onChange={e=>u("location",e.target.value)} placeholder="Venue or address"/>
+        <Input label="Guests" value={f.attendance} onChange={e=>u("attendance",e.target.value)} placeholder="Expected attendance" type="number"/>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:6}}><Btn variant="accent" onClick={()=>setStep(2)}>Continue</Btn></div>
+      </>}
+      {step===2&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Requirements</h3>
+        <Input label="Cuisine Preferences" value={f.cuisine} onChange={e=>u("cuisine",e.target.value)} placeholder="e.g. BBQ, Mexican, Any"/>
+        <Input label="Budget Range" value={f.budget} onChange={e=>u("budget",e.target.value)} placeholder="e.g. $500–$1,000"/>
+        <Input label="Additional Details" value={f.notes} onChange={e=>u("notes",e.target.value)} placeholder="Dietary needs, setup, # of trucks..." textarea rows={4}/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><Btn variant="ghost" onClick={()=>setStep(1)}>Back</Btn><Btn variant="accent" onClick={()=>setStep(3)}>Continue</Btn></div>
+      </>}
+      {step===3&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Contact</h3>
+        <Input label="Name" value={f.name} onChange={e=>u("name",e.target.value)} placeholder="Full name"/>
+        <Input label="Organization" value={f.org} onChange={e=>u("org",e.target.value)} placeholder="Optional"/>
+        <Input label="Email" value={f.email} onChange={e=>u("email",e.target.value)} placeholder="you@email.com" type="email"/>
+        <Input label="Phone" value={f.phone} onChange={e=>u("phone",e.target.value)} placeholder="(804) 555-0000"/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><Btn variant="ghost" onClick={()=>setStep(2)}>Back</Btn><Btn variant="accent" onClick={()=>setStep(4)}>Submit Request</Btn></div>
+      </>}
     </div>
-  );
+  </FormPage>
 }
 
-// ── Clipboard text ──
-function generateClipboardText(call, fields) {
-  const isLong = call.direction === "LONG";
-  const targets = (call.targets || []).filter(t => t.price);
-  const dcaList = (call.dcas || []).filter(d => d.price);
-  const wAvg = dcaList.length ? weightedAvgEntry(call.entry, call.entryPct, dcaList) : null;
-  const eff = wAvg || parseFloat(call.entry);
+function JoinVendor({go}){
+  const[step,setStep]=useState(1);
+  const[f,sF]=useState({truck:"",cuisine:"",owner:"",phone:"",email:"",schedule:"",description:"",waitlist:false});
+  const u=(k,v)=>sF({...f,[k]:v});
+  const cuisines=["BBQ & Smoked","Mexican / Latin","Southern / Soul","Asian Fusion","Breakfast / Brunch","Beverages / Dessert","Other"];
+  
+  if(step===4)return<div style={{paddingTop:54,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+    <div className="ani" style={{textAlign:"center",maxWidth:380}}>
+      <div style={{width:44,height:44,borderRadius:99,background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 20px",animation:"fadeUp .4s ease"}}>{"✓"}</div>
+      <h2 style={{fontSize:24,fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 10px"}}>You're in the network.</h2>
+      <p style={{fontSize:14,color:"var(--sub)",lineHeight:1.7,fontWeight:300}}>Log in to complete your profile and add your menu.</p>
+      {f.waitlist&&<p style={{fontSize:12,fontWeight:500,background:"var(--accentL)",color:"var(--accent)",padding:"8px 14px",borderRadius:8,display:"inline-block",marginTop:10}}>Verified Vendor waitlist — applied</p>}
+      <div style={{marginTop:28,display:"flex",gap:8,justifyContent:"center"}}><Btn variant="accent" onClick={()=>go("/member")}>Set Up Profile</Btn><Btn variant="outline" onClick={()=>go("/")}>Home</Btn></div>
+    </div>
+  </div>;
 
-  let lines = [];
-  let header = `${isLong ? "🟢" : "🔴"} ${call.direction} — ${call.pair || "BTC/USDT"}`;
-  if (call.orderType === "limit") header += " (Limit)";
-  if (fields.timeframe && call.timeframe) header += ` (${call.timeframe})`;
-  if (fields.tags && call.tag) header += ` [${call.tag}]`;
-  lines.push(header, "");
-  lines.push(`📍 Entry: ${call.entry ? formatPrice(call.entry) : "—"}${dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}`);
-  if (dcaList.length && wAvg) {
-    dcaList.forEach((d, i) => lines.push(`   DCA ${i + 1}: ${formatPrice(d.price)} (${d.pct}%)`));
-    lines.push(`   Avg: ${formatPrice(wAvg)}`);
-  }
-  lines.push(`🛑 SL: ${call.sl ? formatPrice(call.sl) : "—"}${eff ? ` (-${pctDiff(eff, call.sl) || "?"}%)` : ""}`);
-  if (call.definedRisk) lines.push(`🎯 Risk: ${call.definedRisk}${call.riskUnit === "pct" ? "% portfolio" : "R"}`);
-  if (fields.leverage && call.leverage) lines.push(`⚡ ${call.leverage}x`);
-  lines.push("");
-  if (targets.length) {
-    lines.push("🎯 Targets:");
-    targets.forEach((t, i) => {
-      const r = calcRR(eff, call.sl, t.price);
-      lines.push(`  ${i + 1}. ${formatPrice(t.price)}${t.trim ? ` (${t.trim}%)` : ""}${r ? ` — ${r}R` : ""}`);
-    });
-    lines.push("");
-  }
-  if (call.notes) lines.push(`💬 ${call.notes}`, "");
-  if (call.chartTv) lines.push(`📊 ${call.chartTv}`, "");
-  lines.push("— Brypto");
-  return lines.join("\n");
+  return<FormPage go={go} title="Join as a Vendor" subtitle={`Step ${step} of 3 — Free to join`}>
+    <div style={{display:"flex",gap:3,marginBottom:24}}>{[1,2,3].map(s=><div key={s} style={{flex:1,height:2,borderRadius:2,background:s<=step?"var(--accent)":"var(--line)",transition:"background .3s"}}/>)}</div>
+    <div className="ani d1" style={{background:"var(--card)",borderRadius:10,border:"1px solid var(--line)",padding:"clamp(20px,3.5vw,32px)"}}>
+      {step===1&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Business Info</h3>
+        <Input label="Truck Name" value={f.truck} onChange={e=>u("truck",e.target.value)} placeholder="Your food truck name"/>
+        <div style={{marginBottom:14}}><label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--sub)",marginBottom:6}}>Cuisine</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{cuisines.map(c=><Chip key={c} active={f.cuisine===c} onClick={()=>u("cuisine",c)}>{c}</Chip>)}</div></div>
+        <Input label="Schedule" value={f.schedule} onChange={e=>u("schedule",e.target.value)} placeholder="e.g. Tue–Sat 11am–8pm"/>
+        <Input label="Description" value={f.description} onChange={e=>u("description",e.target.value)} placeholder="What you serve..." textarea rows={3}/>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:6}}><Btn variant="accent" onClick={()=>setStep(2)}>Continue</Btn></div>
+      </>}
+      {step===2&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Contact</h3>
+        <Input label="Owner Name" value={f.owner} onChange={e=>u("owner",e.target.value)} placeholder="Full name"/>
+        <Input label="Email" value={f.email} onChange={e=>u("email",e.target.value)} placeholder="you@email.com" type="email"/>
+        <Input label="Phone" value={f.phone} onChange={e=>u("phone",e.target.value)} placeholder="(804) 555-0000"/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><Btn variant="ghost" onClick={()=>setStep(1)}>Back</Btn><Btn variant="accent" onClick={()=>setStep(3)}>Continue</Btn></div>
+      </>}
+      {step===3&&<><h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Verified Access</h3>
+        <div style={{background:"var(--tint)",borderRadius:8,padding:16,marginBottom:18,border:"1px solid var(--line)"}}>
+          <h4 style={{fontSize:13,fontWeight:600,marginBottom:4}}>Verified Vendor tier — launching soon</h4>
+          <p style={{fontSize:12,color:"var(--sub)",lineHeight:1.6,fontWeight:300,marginBottom:10}}>Priority placement, direct leads, category protection.</p>
+          <label style={{display:"flex",alignItems:"flex-start",gap:8,cursor:"pointer"}}><input type="checkbox" checked={f.waitlist} onChange={e=>u("waitlist",e.target.checked)} style={{marginTop:2,accentColor:"var(--accent)"}}/><span style={{fontSize:13,lineHeight:1.5}}>Add me to the waitlist.</span></label>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between"}}><Btn variant="ghost" onClick={()=>setStep(2)}>Back</Btn><Btn variant="accent" onClick={()=>setStep(4)}>Join Network</Btn></div>
+      </>}
+    </div>
+  </FormPage>
 }
 
-// ══════════════════════════════════════════════════════════════
-// MAIN APPLICATION
-// ══════════════════════════════════════════════════════════════
-export default function BryptoCallEngine() {
-  const [view, setView] = useState("call");
-
-  const [call, setCall] = useState({
-    tradeId: makeTradeId(),
-    pair: "",
-    direction: "LONG",
-    orderType: "market",
-    entry: "",
-    entryPct: "100",
-    definedRisk: "",
-    riskUnit: "pct",
-    sl: "",
-    targets: [
-      { price: "", trim: "", hit: false },
-      { price: "", trim: "", hit: false },
-      { price: "", trim: "", hit: false },
-    ],
-    dcas: [],
-    notes: "",
-    analyst: "esco",
-    leverage: "",
-    timeframe: "",
-    tag: "",
-    invalidation: "",
-    chartTv: "",
-    chartImg: "",
-    status: "pending",
-    updates: [],
-  });
-
-  const [fields, setFields] = useState({
-    leverage: false, dca: false, timeframe: false, tags: false,
-    invalidation: false, notes: true, rr: true, trims: true, chart: false,
-  });
-
-  const [showFields, setShowFields] = useState(false);
-  const [equalTrim, setEqualTrim] = useState(false);
-  const [previewSkin, setPreviewSkin] = useState("premium");
-  const [copied, setCopied] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [history, setHistory] = useState([]);
-  const [toast, setToast] = useState(null);
-  const [showUpdate, setShowUpdate] = useState(false);
-  const [updateType, setUpdateType] = useState("be");
-  const [updateNote, setUpdateNote] = useState("");
-
-  const [webhooks, setWebhooks] = useState([
-    { id: "1", name: "Brypto Main", url: "https://discord.com/api/webhooks/...", on: true, skin: "premium" },
-    { id: "2", name: "VIP Calls", url: "https://discord.com/api/webhooks/...", on: true, skin: "premium" },
-    { id: "3", name: "Pepe Server", url: "https://discord.com/api/webhooks/...", on: true, skin: "basic" },
-    { id: "4", name: "Alpha Chat", url: "https://discord.com/api/webhooks/...", on: true, skin: "basic" },
-  ]);
-  const [showAddWH, setShowAddWH] = useState(false);
-  const [newWH, setNewWH] = useState({ name: "", url: "", skin: "basic" });
-
-  // Updaters
-  const updateCall = (key, value) => setCall(prev => ({ ...prev, [key]: value }));
-  const updateTarget = (index, key, value) => {
-    setCall(prev => {
-      const targets = [...prev.targets];
-      targets[index] = { ...targets[index], [key]: value };
-      return { ...prev, targets };
-    });
-  };
-  const addTarget = () => setCall(prev => ({ ...prev, targets: [...prev.targets, { price: "", trim: "", hit: false }] }));
-  const removeTarget = (i) => setCall(prev => ({ ...prev, targets: prev.targets.filter((_, j) => j !== i) }));
-  const addDCA = () => setCall(prev => ({ ...prev, dcas: [...prev.dcas, { price: "", pct: "" }] }));
-  const updateDCA = (i, k, v) => setCall(prev => { const d = [...prev.dcas]; d[i] = { ...d[i], [k]: v }; return { ...prev, dcas: d }; });
-  const removeDCA = (i) => setCall(prev => ({ ...prev, dcas: prev.dcas.filter((_, j) => j !== i) }));
-
-  const flash = (msg, type) => { setToast({ msg, type: type || "ok" }); setTimeout(() => setToast(null), 2500); };
-
-  const isLong = call.direction === "LONG";
-  const accent = isLong ? COLORS.long : COLORS.short;
-  const canSend = call.pair && call.entry && call.sl && call.targets.some(t => t.price);
-  const activeWH = webhooks.filter(w => w.on).length;
-  const canCalcR = parseFloat(call.entry) > 0 && parseFloat(call.sl) > 0;
-
-  // Equal trim auto-calc
-  useEffect(() => {
-    if (!equalTrim) return;
-    const active = call.targets.filter(t => t.price);
-    if (!active.length) return;
-    const each = Math.floor(100 / active.length);
-    const remainder = 100 - each * active.length;
-    setCall(prev => ({
-      ...prev,
-      targets: prev.targets.map((t, i) => {
-        if (!t.price) return t;
-        const idx = prev.targets.filter((x, j) => x.price && j <= i).length - 1;
-        return { ...t, trim: String(idx === active.length - 1 ? each + remainder : each) };
-      }),
-    }));
-  }, [equalTrim, call.targets.map(t => t.price).join(",")]);
-
-  const fillAllR = () => {
-    if (!canCalcR) return;
-    setCall(prev => ({
-      ...prev,
-      targets: [
-        { price: getRTarget(prev.entry, prev.sl, 1, prev.direction), trim: equalTrim ? "34" : "", hit: false },
-        { price: getRTarget(prev.entry, prev.sl, 2, prev.direction), trim: equalTrim ? "33" : "", hit: false },
-        { price: getRTarget(prev.entry, prev.sl, 3, prev.direction), trim: equalTrim ? "33" : "", hit: false },
-      ],
-    }));
-  };
-
-  const quickAddR = (mult) => {
-    const val = getRTarget(call.entry, call.sl, mult, call.direction);
-    if (!val) return;
-    setCall(prev => {
-      const targets = [...prev.targets];
-      const emptyIdx = targets.findIndex(x => !x.price);
-      if (emptyIdx >= 0) targets[emptyIdx] = { ...targets[emptyIdx], price: val };
-      else targets.push({ price: val, trim: "", hit: false });
-      return { ...prev, targets };
-    });
-  };
-
-  const handleSend = () => {
-    if (!canSend) return;
-    setSent(true);
-    flash(`Sending to ${activeWH} servers...`);
-    setHistory(prev => [{ id: Date.now(), ...call, ts: Date.now(), dist: activeWH }, ...prev]);
-    updateCall("status", "active");
-    setTimeout(() => { setSent(false); flash(`✓ Distributed to ${activeWH} servers`); }, 1100);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(generateClipboardText(call, fields)).then(() => {
-      setCopied(true);
-      flash("Copied — paste anywhere");
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const handleUpdate = () => {
-    const types = {
-      be: { icon: "🔒", text: "SL → break even", color: COLORS.info, status: "break_even" },
-      tp_partial: { icon: "✅", text: `Partial TP${updateNote ? ` — ${updateNote}` : ""}`, color: COLORS.long, status: "partial" },
-      closed: { icon: "💰", text: `Closed${updateNote ? ` — ${updateNote}` : ""}`, color: COLORS.long, status: "closed" },
-      invalidated: { icon: "❌", text: `Invalidated${updateNote ? ` — ${updateNote}` : ""}`, color: COLORS.short, status: "invalidated" },
-      stopped: { icon: "🛑", text: "Stopped out", color: COLORS.short, status: "stopped" },
-      sl_moved: { icon: "🔄", text: `SL → ${updateNote || "moved"}`, color: COLORS.gold, status: null },
-      note: { icon: "📝", text: updateNote || "Note", color: COLORS.brand, status: null },
-    };
-    const u = types[updateType];
-    if (!u) return;
-    const newUpdate = {
-      icon: u.icon,
-      text: u.text,
-      color: u.color,
-      time: new Date().toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" }),
-    };
-    setCall(prev => ({
-      ...prev,
-      updates: [...prev.updates, newUpdate],
-      status: u.status || prev.status,
-    }));
-    setUpdateNote("");
-    setShowUpdate(false);
-    flash("Update posted");
-  };
-
-  const clearCall = () => {
-    setCall({
-      tradeId: makeTradeId(),
-      pair: "", direction: call.direction, orderType: "market", entry: "", entryPct: "100", definedRisk: "", riskUnit: "pct", sl: "",
-      targets: [{ price: "", trim: "", hit: false }, { price: "", trim: "", hit: false }, { price: "", trim: "", hit: false }],
-      dcas: [], notes: "", analyst: "esco", leverage: "", timeframe: "", tag: "",
-      invalidation: "", chartTv: "", chartImg: "", status: "pending", updates: [],
-    });
-  };
-
-  const navItems = [
-    { id: "call", icon: "⚡", label: "Call" },
-    { id: "webhooks", icon: "🔗", label: "Servers" },
-    { id: "history", icon: "📋", label: "History" },
-    { id: "admin", icon: "⚙️", label: "Admin" },
-    { id: "discord", icon: "🤖", label: "Discord" },
-  ];
-
-  return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: FONT }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${COLORS.border}; border-radius: 2px; }
-        input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-        input[type=number] { -moz-appearance: textfield; }
-        textarea { resize: vertical; }
-      `}</style>
-
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 999,
-          padding: "8px 16px", borderRadius: 7,
-          background: toast.type === "ok" ? "#0c1a14" : "#1a1510",
-          border: `1px solid ${toast.type === "ok" ? COLORS.long + "20" : COLORS.gold + "20"}`,
-          color: toast.type === "ok" ? COLORS.long : COLORS.gold,
-          fontSize: 12, fontWeight: 600, fontFamily: FONT,
-          boxShadow: "0 6px 24px rgba(0,0,0,.5)",
-        }}>{toast.msg}</div>
+function AccessPage({go}){
+  const[done,setDone]=useState(false);
+  const[f,sF]=useState({name:"",truck:"",cuisine:"",email:"",why:""});
+  const u=(k,v)=>sF({...f,[k]:v});
+  const cs=["BBQ & Smoked","Mexican / Latin","Southern / Soul","Asian Fusion","Breakfast / Brunch","Beverages / Dessert"];
+  return<FormPage go={go} title="Verified Vendor Access" subtitle="Priority access to booking requests and protected category placement.">
+    <div className="ani d1" style={{display:"flex",flexDirection:"column",gap:1,background:"var(--line)",borderRadius:10,overflow:"hidden",marginBottom:32}}>
+      {[["Priority Placement","Appear first to event hosts."],["Direct Lead Routing","Requests matched to your cuisine."],["Category Protection","Limited slots. Competition capped."],["Featured Visibility","Prominent in directory and matching."]].map(([t,d])=>
+        <div key={t} style={{background:"var(--card)",padding:"clamp(18px,3vw,28px)"}}>
+          <h3 style={{fontSize:13,fontWeight:600,marginBottom:3}}>{t}</h3>
+          <p style={{fontSize:12,color:"var(--sub)",lineHeight:1.6,fontWeight:300}}>{d}</p>
+        </div>
       )}
-
-      {/* Header */}
-      <header style={{
-        padding: "9px 22px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        borderBottom: `1px solid ${COLORS.border}`, background: COLORS.panel,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <BryptoLogo size={28} />
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: "-.2px", lineHeight: 1.2 }}>Brypto</div>
-            <div style={{ fontSize: 9, color: COLORS.dim }}>Call Engine</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 1, background: COLORS.card, borderRadius: 6, padding: 2, border: `1px solid ${COLORS.border}` }}>
-          {navItems.map(n => (
-            <button key={n.id} onClick={() => setView(n.id)} style={{
-              padding: "5px 13px", borderRadius: 5, border: "none", cursor: "pointer",
-              background: view === n.id ? COLORS.brandBg : "transparent",
-              color: view === n.id ? COLORS.text : COLORS.muted,
-              fontSize: 11.5, fontWeight: 600, fontFamily: FONT, transition: "all .1s",
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              <span style={{ fontSize: 10 }}>{n.icon}</span>{n.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.brand, boxShadow: `0 0 5px ${COLORS.brand}50` }} />
-          <span style={{ fontSize: 10, color: COLORS.muted }}>{activeWH} active</span>
-        </div>
-      </header>
-
-      {/* Main */}
-      <main style={{ padding: "18px 22px", maxWidth: 1280, margin: "0 auto" }}>
-
-        {/* ═══ CALL VIEW ═══ */}
-        {view === "call" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
-            {/* LEFT: Form */}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-.3px" }}>New Call</h2>
-                  <p style={{ fontSize: 10.5, color: COLORS.muted, marginTop: 1 }}>Entry + SL → auto R → distribute.</p>
-                </div>
-                <div style={{ display: "flex", gap: 4 }}>
-                  <ActionButton small outline color={COLORS.muted} onClick={() => setShowFields(!showFields)}>⚙ Fields</ActionButton>
-                  <ActionButton small outline color={COLORS.dim} onClick={clearCall}>Clear</ActionButton>
-                </div>
-              </div>
-
-              {/* Field toggles */}
-              {showFields && (
-                <div style={{ background: COLORS.card, border: `1px solid ${COLORS.brandBdr}`, borderRadius: 9, padding: "12px 16px", marginBottom: 10 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.brand, letterSpacing: ".5px", marginBottom: 7, textTransform: "uppercase" }}>Visible Fields</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                    <ToggleSwitch on={fields.notes} onToggle={() => setFields(p => ({ ...p, notes: !p.notes }))} label="Notes" />
-                    <ToggleSwitch on={fields.trims} onToggle={() => setFields(p => ({ ...p, trims: !p.trims }))} label="Trim %" />
-                    <ToggleSwitch on={fields.leverage} onToggle={() => setFields(p => ({ ...p, leverage: !p.leverage }))} label="Leverage" />
-                    <ToggleSwitch on={fields.dca} onToggle={() => setFields(p => ({ ...p, dca: !p.dca }))} label="DCA Zones" />
-                    <ToggleSwitch on={fields.timeframe} onToggle={() => setFields(p => ({ ...p, timeframe: !p.timeframe }))} label="Timeframe" />
-                    <ToggleSwitch on={fields.tags} onToggle={() => setFields(p => ({ ...p, tags: !p.tags }))} label="Trade Tag" />
-                    <ToggleSwitch on={fields.invalidation} onToggle={() => setFields(p => ({ ...p, invalidation: !p.invalidation }))} label="Invalidation" />
-                    <ToggleSwitch on={fields.chart} onToggle={() => setFields(p => ({ ...p, chart: !p.chart }))} label="Chart" />
-                  </div>
-                </div>
-              )}
-
-              {/* Form */}
-              <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                {/* Direction + order type */}
-                <div style={{ display: "flex", gap: 7 }}>
-                  <div style={{ flex: 1, display: "flex", borderRadius: 6, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
-                    {["LONG", "SHORT"].map(d => (
-                      <button key={d} onClick={() => updateCall("direction", d)} style={{
-                        flex: 1, padding: "8px 0", border: "none", cursor: "pointer",
-                        background: call.direction === d ? (d === "LONG" ? COLORS.long : COLORS.short) : COLORS.bg,
-                        color: call.direction === d ? (d === "LONG" ? "#060709" : "#fff") : COLORS.dim,
-                        fontSize: 11.5, fontWeight: 800, letterSpacing: "1.2px", fontFamily: FONT, transition: "all .1s",
-                      }}>{d === "LONG" ? "▲ LONG" : "▼ SHORT"}</button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    {["market", "limit"].map(o => (
-                      <PillButton key={o} small active={call.orderType === o} color={COLORS.sub} onClick={() => updateCall("orderType", o)}>
-                        {o.charAt(0).toUpperCase() + o.slice(1)}
-                      </PillButton>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pair + optional inline fields */}
-                <div style={{ display: "flex", gap: 7, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <TextInput label="Pair" value={call.pair} onChange={v => updateCall("pair", v.toUpperCase())} placeholder="BTC/USDT" autoFocus flex={2} />
-                  {fields.timeframe && (
-                    <div>
-                      <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4, letterSpacing: ".7px", textTransform: "uppercase" }}>TF</div>
-                      <div style={{ display: "flex", gap: 2 }}>
-                        {["1H", "4H", "1D", "1W"].map(tf => (
-                          <PillButton key={tf} small active={call.timeframe === tf} onClick={() => updateCall("timeframe", call.timeframe === tf ? "" : tf)}>{tf}</PillButton>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {fields.tags && (
-                    <div>
-                      <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4, letterSpacing: ".7px", textTransform: "uppercase" }}>Type</div>
-                      <div style={{ display: "flex", gap: 2 }}>
-                        {["Scalp", "Swing", "Position"].map(tg => (
-                          <PillButton key={tg} small active={call.tag === tg} onClick={() => updateCall("tag", call.tag === tg ? "" : tg)}>{tg}</PillButton>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Entry + SL */}
-                <div style={{ display: "flex", gap: 7, alignItems: "flex-end" }}>
-                  <TextInput label="Entry" value={call.entry} onChange={v => updateCall("entry", v)} placeholder="Entry price" type="number" mono />
-                  {fields.dca && (
-                    <TextInput label="Entry %" value={call.entryPct} onChange={v => updateCall("entryPct", v)} placeholder="%" type="number" mono suffix="%" style={{ maxWidth: 72 }} />
-                  )}
-                  <TextInput label="Stop Loss" value={call.sl} onChange={v => updateCall("sl", v)} placeholder="Stop price" type="number" mono />
-                  {pctDiff(call.entry, call.sl) && (
-                    <div style={{
-                      padding: "6px 9px", borderRadius: 5, background: COLORS.shortBg,
-                      border: `1px solid ${COLORS.shortBdr}`, height: 33,
-                      display: "flex", alignItems: "center", flexShrink: 0,
-                    }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.short, fontFamily: MONO }}>-{pctDiff(call.entry, call.sl)}%</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Defined Risk */}
-                <div style={{ display: "flex", gap: 7, alignItems: "flex-end" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4, letterSpacing: ".7px", textTransform: "uppercase" }}>
-                      Defined Risk
-                    </div>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <TextInput small value={call.definedRisk} onChange={v => updateCall("definedRisk", v)} placeholder={call.riskUnit === "pct" ? "e.g. 1" : "e.g. 0.5"} type="number" mono />
-                      <div style={{ display: "flex", gap: 2 }}>
-                        {[{id: "pct", label: "% Port"}, {id: "r", label: "R"}].map(u => (
-                          <PillButton key={u.id} small active={call.riskUnit === u.id} color={COLORS.short} onClick={() => updateCall("riskUnit", u.id)}>{u.label}</PillButton>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {call.definedRisk && pctDiff(call.entry, call.sl) && (
-                    <div style={{
-                      padding: "5px 9px", borderRadius: 5, background: COLORS.brandBg,
-                      border: `1px solid ${COLORS.brandBdr}`,
-                      display: "flex", alignItems: "center", flexShrink: 0, gap: 4,
-                    }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.brand, fontFamily: MONO }}>
-                        Risk: {call.definedRisk}{call.riskUnit === "pct" ? "%" : "R"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Leverage */}
-                {fields.leverage && (
-                  <TextInput label="Leverage" value={call.leverage} onChange={v => updateCall("leverage", v)} placeholder="10" type="number" mono suffix="x" />
-                )}
-
-                {/* DCA */}
-                {fields.dca && (
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, letterSpacing: ".7px", textTransform: "uppercase" }}>DCA Levels</span>
-                      <div style={{ display: "flex", gap: 3 }}>
-                        <button onClick={() => {
-                          // Auto-fill: distribute remaining % to last empty DCA or entry
-                          const total = allocationTotal(call.entryPct, call.dcas);
-                          if (total < 100 && call.dcas.length > 0) {
-                            const remaining = 100 - total;
-                            const lastIdx = call.dcas.length - 1;
-                            const lastDca = call.dcas[lastIdx];
-                            if (!lastDca.pct || parseFloat(lastDca.pct) === 0) {
-                              updateDCA(lastIdx, "pct", String(Math.round(remaining)));
-                            } else {
-                              // Add remaining to the last one
-                              updateDCA(lastIdx, "pct", String(Math.round(parseFloat(lastDca.pct) + remaining)));
-                            }
-                          }
-                        }} style={{
-                          background: "transparent", border: `1px dashed ${COLORS.brandBdr}`, borderRadius: 12,
-                          color: COLORS.brand, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
-                        }}>Auto %</button>
-                        <button onClick={addDCA} style={{
-                          background: "transparent", border: `1px dashed ${COLORS.bd2}`, borderRadius: 12,
-                          color: COLORS.muted, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
-                        }}>+ Add</button>
-                      </div>
-                    </div>
-                    <div style={{
-                      fontSize: 10.5, color: COLORS.dim, marginBottom: 6, lineHeight: 1.4,
-                      padding: "5px 8px", background: COLORS.bg, borderRadius: 5, border: `1px solid ${COLORS.border}`,
-                    }}>
-                      💡 Entry % + all DCA % should add up to <strong style={{ color: COLORS.sub }}>100%</strong>. Example: 50% at entry, 30% DCA1, 20% DCA2.
-                    </div>
-                    {call.dcas.map((d, i) => (
-                      <div key={i} style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 4 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.dim, width: 14, textAlign: "center" }}>{i + 1}</span>
-                        <TextInput small value={d.price} onChange={v => updateDCA(i, "price", v)} placeholder="Price" type="number" mono />
-                        <TextInput small value={d.pct} onChange={v => updateDCA(i, "pct", v)} placeholder="%" type="number" mono suffix="%" style={{ maxWidth: 72 }} />
-                        <button onClick={() => removeDCA(i)} style={{
-                          background: "transparent", border: "none", cursor: "pointer", color: COLORS.dim, fontSize: 12,
-                        }} onMouseEnter={e => e.currentTarget.style.color = COLORS.short} onMouseLeave={e => e.currentTarget.style.color = COLORS.dim}>×</button>
-                      </div>
-                    ))}
-                    {/* Allocation total + weighted avg */}
-                    {call.dcas.length > 0 && (
-                      <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0 0 20px" }}>
-                        {weightedAvgEntry(call.entry, call.entryPct, call.dcas) && (
-                          <span style={{ fontSize: 10.5, color: COLORS.brand, fontFamily: MONO }}>
-                            Avg: {formatPrice(weightedAvgEntry(call.entry, call.entryPct, call.dcas))}
-                          </span>
-                        )}
-                        {(() => {
-                          const total = allocationTotal(call.entryPct, call.dcas);
-                          const isGood = Math.abs(total - 100) < 0.5;
-                          return (
-                            <span style={{
-                              fontSize: 10, fontWeight: 600, fontFamily: MONO,
-                              color: isGood ? COLORS.long : total > 100 ? COLORS.short : COLORS.gold,
-                            }}>
-                              {isGood ? "✓" : "⚠"} {total.toFixed(0)}% allocated
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Targets */}
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, letterSpacing: ".7px", textTransform: "uppercase" }}>Targets</span>
-                    <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                      {canCalcR && (
-                        <>
-                          <PillButton small color={COLORS.long} onClick={() => quickAddR(1)}>+1R</PillButton>
-                          <PillButton small color={COLORS.long} onClick={() => quickAddR(2)}>+2R</PillButton>
-                          <PillButton small color={COLORS.long} onClick={() => quickAddR(3)}>+3R</PillButton>
-                          <PillButton small color={COLORS.brand} onClick={fillAllR}>Auto</PillButton>
-                        </>
-                      )}
-                      {fields.trims && (
-                        <PillButton small color={COLORS.gold} active={equalTrim} onClick={() => setEqualTrim(!equalTrim)}>= Trim</PillButton>
-                      )}
-                      {fields.trims && !equalTrim && (
-                        <button onClick={() => {
-                          const trimTotal = call.targets.reduce((s, t) => s + (parseFloat(t.trim) || 0), 0);
-                          if (trimTotal < 100) {
-                            const remaining = 100 - trimTotal;
-                            // Find last target with a price but no trim
-                            const lastIdx = [...call.targets].reverse().findIndex(t => t.price && (!t.trim || parseFloat(t.trim) === 0));
-                            if (lastIdx >= 0) {
-                              updateTarget(call.targets.length - 1 - lastIdx, "trim", String(Math.round(remaining)));
-                            }
-                          }
-                        }} style={{
-                          background: "transparent", border: `1px dashed ${COLORS.goldBg}`, borderRadius: 12,
-                          color: COLORS.gold, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
-                        }}>Auto %</button>
-                      )}
-                      <button onClick={addTarget} style={{
-                        background: "transparent", border: `1px dashed ${COLORS.bd2}`, borderRadius: 12,
-                        color: COLORS.muted, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
-                      }}>+</button>
-                    </div>
-                  </div>
-                  {fields.trims && !equalTrim && call.targets.some(t => t.price) && (
-                    <div style={{
-                      fontSize: 10.5, color: COLORS.dim, marginBottom: 6, lineHeight: 1.4,
-                      padding: "5px 8px", background: COLORS.bg, borderRadius: 5, border: `1px solid ${COLORS.border}`,
-                    }}>
-                      💡 Trim % = how much to close at each TP. Should total <strong style={{ color: COLORS.sub }}>100%</strong>.
-                    </div>
-                  )}
-                  {call.targets.map((t, i) => (
-                    <div key={i} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
-                      <span style={{
-                        width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 8.5, fontWeight: 700, background: COLORS.bg, color: COLORS.muted,
-                        border: `1px solid ${COLORS.border}`, flexShrink: 0,
-                      }}>{i + 1}</span>
-                      <TextInput
-                        small value={t.price}
-                        onChange={v => updateTarget(i, "price", v)}
-                        placeholder={canCalcR ? formatPrice(getRTarget(call.entry, call.sl, i + 1, call.direction)) : `TP ${i + 1}`}
-                        type="number" mono
-                      />
-                      {fields.trims && !equalTrim && (
-                        <TextInput small value={t.trim} onChange={v => updateTarget(i, "trim", v)} placeholder="Trim" type="number" mono suffix="%" style={{ maxWidth: 72 }} />
-                      )}
-                      {fields.trims && equalTrim && t.trim && (
-                        <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.gold, fontFamily: MONO, width: 30, textAlign: "right", flexShrink: 0 }}>{t.trim}%</span>
-                      )}
-                      {(() => {
-                        const dcaList = (call.dcas || []).filter(d => d.price);
-                        const wAvg = dcaList.length > 0 ? weightedAvgEntry(call.entry, call.entryPct, dcaList) : null;
-                        const effEntry = wAvg || call.entry;
-                        const r = calcRR(effEntry, call.sl, t.price);
-                        return r ? (
-                          <span style={{
-                            fontSize: 10.5, fontWeight: 700, fontFamily: MONO, width: 28, textAlign: "right", flexShrink: 0,
-                            color: parseFloat(r) >= 3 ? COLORS.long : parseFloat(r) >= 2 ? COLORS.gold : COLORS.muted,
-                          }}>{r}R</span>
-                        ) : <span style={{ width: 28, flexShrink: 0 }} />;
-                      })()}
-                      {call.targets.length > 1 && (
-                        <button onClick={() => removeTarget(i)} style={{
-                          background: "transparent", border: "none", cursor: "pointer", color: COLORS.dim, fontSize: 12,
-                        }} onMouseEnter={e => e.currentTarget.style.color = COLORS.short} onMouseLeave={e => e.currentTarget.style.color = COLORS.dim}>×</button>
-                      )}
-                    </div>
-                  ))}
-                  {/* Trim total indicator */}
-                  {fields.trims && call.targets.some(t => t.trim) && (() => {
-                    const trimTotal = call.targets.reduce((s, t) => s + (parseFloat(t.trim) || 0), 0);
-                    const isGood = Math.abs(trimTotal - 100) < 0.5;
-                    return (
-                      <div style={{ padding: "3px 0 0 20px" }}>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, fontFamily: MONO,
-                          color: isGood ? COLORS.long : trimTotal > 100 ? COLORS.short : COLORS.gold,
-                        }}>
-                          {isGood ? "✓" : "⚠"} {trimTotal.toFixed(0)}% total trim
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Notes */}
-                {fields.notes && (
-                  <div>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4, letterSpacing: ".7px", textTransform: "uppercase" }}>Notes</div>
-                    <textarea
-                      value={call.notes} onChange={e => updateCall("notes", e.target.value)}
-                      placeholder="Quick context..." rows={2}
-                      style={{
-                        width: "100%", padding: "6px 10px", background: COLORS.bg,
-                        border: `1px solid ${COLORS.border}`, borderRadius: 6, color: COLORS.text,
-                        fontSize: 12.5, fontFamily: FONT, outline: "none", lineHeight: 1.4,
-                      }}
-                      onFocus={e => e.target.style.borderColor = COLORS.brand}
-                      onBlur={e => e.target.style.borderColor = COLORS.border}
-                    />
-                  </div>
-                )}
-
-                {fields.invalidation && (
-                  <TextInput label="Invalidation" value={call.invalidation} onChange={v => updateCall("invalidation", v)} placeholder="e.g. Daily close below 60k" />
-                )}
-
-                {/* Chart */}
-                {fields.chart && (
-                  <div style={{ display: "flex", gap: 7 }}>
-                    <TextInput label="TradingView Link" value={call.chartTv} onChange={v => updateCall("chartTv", v)} placeholder="https://tradingview.com/..." flex={2} />
-                    <TextInput label="Chart Image URL" value={call.chartImg} onChange={v => updateCall("chartImg", v)} placeholder="https://..." flex={1} />
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 6, paddingTop: 2 }}>
-                  <ActionButton color={accent} full disabled={!canSend} onClick={handleSend}
-                    style={sent ? { background: COLORS.long, color: "#060709" } : {}}>
-                    {sent ? "✓ Sent!" : `⚡ Send to ${activeWH} Server${activeWH !== 1 ? "s" : ""}`}
-                  </ActionButton>
-                  <ActionButton outline color={COLORS.sub} onClick={handleCopy} disabled={!canSend}>
-                    {copied ? "✓" : "📋"}
-                  </ActionButton>
-                </div>
-
-                {/* Trade updates */}
-                {call.status !== "pending" && (
-                  <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 8, marginTop: 2 }}>
-                    {!showUpdate ? (
-                      <ActionButton small outline color={COLORS.info} full onClick={() => setShowUpdate(true)}>📡 Post Update</ActionButton>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, letterSpacing: ".5px", textTransform: "uppercase" }}>Update</div>
-                        <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                          {[
-                            { id: "be", label: "🔒 BE" },
-                            { id: "sl_moved", label: "🔄 Move SL" },
-                            { id: "tp_partial", label: "✅ TP Hit" },
-                            { id: "closed", label: "💰 Close" },
-                            { id: "invalidated", label: "❌ Invalid" },
-                            { id: "stopped", label: "🛑 Stopped" },
-                            { id: "note", label: "📝 Note" },
-                          ].map(u => (
-                            <PillButton key={u.id} small active={updateType === u.id}
-                              color={u.id === "closed" || u.id === "tp_partial" ? COLORS.long : u.id === "invalidated" || u.id === "stopped" ? COLORS.short : COLORS.info}
-                              onClick={() => setUpdateType(u.id)}>{u.label}</PillButton>
-                          ))}
-                        </div>
-                        <TextInput small value={updateNote} onChange={setUpdateNote} placeholder="Details..." />
-                        <div style={{ display: "flex", gap: 5 }}>
-                          <ActionButton small color={COLORS.info} onClick={handleUpdate}>Post</ActionButton>
-                          <ActionButton small outline color={COLORS.dim} onClick={() => setShowUpdate(false)}>Cancel</ActionButton>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* RIGHT: Preview */}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 700 }}>Preview</h2>
-                  <p style={{ fontSize: 10.5, color: COLORS.muted, marginTop: 1 }}>Live embed output.</p>
-                </div>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                  <StatusBadge status={call.status} />
-                  <div style={{ display: "flex", gap: 1, background: COLORS.card, borderRadius: 5, padding: 1.5, border: `1px solid ${COLORS.border}` }}>
-                    {["premium", "basic"].map(s => (
-                      <button key={s} onClick={() => setPreviewSkin(s)} style={{
-                        padding: "3px 9px", borderRadius: 4, border: "none", cursor: "pointer",
-                        background: previewSkin === s ? COLORS.brandBg : "transparent",
-                        color: previewSkin === s ? COLORS.text : COLORS.dim,
-                        fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "capitalize",
-                      }}>{s}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {previewSkin === "premium" ? <PremiumEmbed call={call} fields={fields} /> : <BasicEmbed call={call} />}
-
-              {canSend && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.dim, letterSpacing: ".4px", textTransform: "uppercase" }}>📋 Text</span>
-                    <ActionButton small outline color={COLORS.muted} onClick={handleCopy}>{copied ? "✓" : "Copy"}</ActionButton>
-                  </div>
-                  <pre style={{
-                    background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                    padding: 10, fontSize: 10.5, color: COLORS.muted, fontFamily: MONO,
-                    lineHeight: 1.5, whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto",
-                  }}>{generateClipboardText(call, fields)}</pre>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ═══ WEBHOOKS ═══ */}
-        {view === "webhooks" && (
-          <div style={{ maxWidth: 680 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700 }}>Servers</h2>
-                <p style={{ fontSize: 10.5, color: COLORS.muted, marginTop: 1 }}>Webhook endpoints + skin per server.</p>
-              </div>
-              <ActionButton small onClick={() => setShowAddWH(!showAddWH)}>{showAddWH ? "Cancel" : "+ Add"}</ActionButton>
-            </div>
-
-            {showAddWH && (
-              <div style={{
-                background: COLORS.card, border: `1px solid ${COLORS.brandBdr}`, borderRadius: 8,
-                padding: 12, marginBottom: 10, display: "flex", gap: 7, alignItems: "flex-end",
-              }}>
-                <TextInput label="Name" value={newWH.name} onChange={v => setNewWH(p => ({ ...p, name: v }))} placeholder="Server" />
-                <TextInput label="URL" value={newWH.url} onChange={v => setNewWH(p => ({ ...p, url: v }))} placeholder="https://discord.com/api/webhooks/..." flex={2} />
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, marginBottom: 4, letterSpacing: ".7px", textTransform: "uppercase" }}>Skin</div>
-                  <div style={{ display: "flex", gap: 2 }}>
-                    {["basic", "premium"].map(s => (
-                      <PillButton key={s} small active={newWH.skin === s} color={s === "premium" ? COLORS.brand : COLORS.sub} onClick={() => setNewWH(p => ({ ...p, skin: s }))}>{s}</PillButton>
-                    ))}
-                  </div>
-                </div>
-                <ActionButton color={COLORS.long} small onClick={() => {
-                  if (newWH.name && newWH.url) {
-                    setWebhooks(p => [...p, { id: Date.now().toString(), ...newWH, on: true }]);
-                    setNewWH({ name: "", url: "", skin: "basic" });
-                    setShowAddWH(false);
-                    flash("Added!");
-                  }
-                }}>Add</ActionButton>
-              </div>
-            )}
-
-            {webhooks.map((w, i) => (
-              <div key={w.id} style={{
-                background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8,
-                padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                marginBottom: 5, transition: "border .1s",
-              }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.bd2}
-                onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: w.on ? COLORS.long : COLORS.dim, boxShadow: w.on ? `0 0 4px ${COLORS.long}40` : "none" }} />
-                  <div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-                      {w.name}
-                      <span style={{
-                        fontSize: 9.5, fontWeight: 600, padding: "1px 6px", borderRadius: 3,
-                        background: w.skin === "premium" ? COLORS.brandBg : COLORS.infoBg,
-                        color: w.skin === "premium" ? COLORS.brand : COLORS.info, textTransform: "capitalize",
-                      }}>{w.skin}</span>
-                    </div>
-                    <div style={{ fontSize: 9.5, color: COLORS.dim, fontFamily: MONO, marginTop: 1 }}>{w.url.slice(0, 40)}...</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <ActionButton small outline color={COLORS.brand} onClick={() => flash(`Test → ${w.name}`)}>Test</ActionButton>
-                  <PillButton small active={w.skin === "premium"} color={COLORS.brand}
-                    onClick={() => setWebhooks(p => p.map(x => x.id === w.id ? { ...x, skin: x.skin === "premium" ? "basic" : "premium" } : x))}>
-                    {w.skin === "premium" ? "⭐" : "↑"}
-                  </PillButton>
-                  <button onClick={() => setWebhooks(p => p.map(x => x.id === w.id ? { ...x, on: !x.on } : x))} style={{
-                    background: "transparent", border: "none", cursor: "pointer", color: COLORS.muted, fontSize: 13, padding: 2,
-                  }}>{w.on ? "⏸" : "▶"}</button>
-                  <button onClick={() => setWebhooks(p => p.filter(x => x.id !== w.id))} style={{
-                    background: "transparent", border: "none", cursor: "pointer", color: COLORS.dim, fontSize: 11, padding: 2,
-                  }} onMouseEnter={e => e.currentTarget.style.color = COLORS.short} onMouseLeave={e => e.currentTarget.style.color = COLORS.dim}>✕</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ═══ HISTORY ═══ */}
-        {view === "history" && (
-          <div style={{ maxWidth: 720 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 3 }}>History</h2>
-            <p style={{ fontSize: 10.5, color: COLORS.muted, marginBottom: 16 }}>All distributed calls.</p>
-            {history.length === 0 ? (
-              <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 40, textAlign: "center", color: COLORS.dim }}>
-                <div style={{ fontSize: 24, marginBottom: 6 }}>📋</div>
-                <div style={{ fontSize: 12 }}>No calls yet.</div>
-              </div>
-            ) : history.map((h, i) => {
-              const hL = h.direction === "LONG";
-              return (
-                <div key={h.id} style={{
-                  background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8,
-                  padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <span style={{
-                      width: 24, height: 24, borderRadius: 5,
-                      background: hL ? COLORS.longBg : COLORS.shortBg,
-                      border: `1px solid ${hL ? COLORS.longBdr : COLORS.shortBdr}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, color: hL ? COLORS.long : COLORS.short, fontWeight: 800,
-                    }}>{hL ? "▲" : "▼"}</span>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-                        {h.pair}{" "}
-                        <span style={{ fontSize: 10, color: COLORS.muted, fontWeight: 400 }}>{formatPrice(h.entry)} → {h.targets.filter(t => t.price).length} TP</span>
-                      </div>
-                      <div style={{ fontSize: 10, color: COLORS.dim, fontFamily: MONO, marginTop: 1 }}>
-                        {h.tradeId} · {new Date(h.ts).toLocaleString("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <StatusBadge status={h.status} />
-                    <span style={{
-                      fontSize: 10.5, fontWeight: 600, color: COLORS.long,
-                      background: COLORS.longBg, padding: "2px 7px", borderRadius: 4, border: `1px solid ${COLORS.longBdr}`,
-                    }}>→ {h.dist}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ═══ ADMIN ═══ */}
-        {view === "admin" && (
-          <div style={{ maxWidth: 850 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 3 }}>Admin</h2>
-            <p style={{ fontSize: 10.5, color: COLORS.muted, marginBottom: 16 }}>System health and operational visibility.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
-              {[
-                { label: "Calls Today", value: history.filter(h => Date.now() - h.ts < 86400000).length, icon: "⚡", color: COLORS.brand },
-                { label: "Active WHs", value: activeWH, icon: "🔗", color: COLORS.long },
-                { label: "Success Rate", value: "100%", icon: "✓", color: COLORS.long },
-                { label: "Total Calls", value: history.length, icon: "📊", color: COLORS.gold },
-              ].map((s, i) => (
-                <div key={i} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontSize: 10.5, color: COLORS.muted, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
-                    <span>{s.icon}</span>{s.label}
-                  </div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: MONO }}>{s.value}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 18, marginBottom: 14 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>📡 System Status</h3>
-              {[
-                { name: "Call Engine API", status: "ok" },
-                { name: "Webhook Distributor", status: "ok" },
-                { name: "Embed Builder (Premium)", status: "ok" },
-                { name: "Embed Builder (Basic)", status: "ok" },
-                { name: "Discord Parser (Mode B)", status: "planned" },
-                { name: "Performance Engine", status: "planned" },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 12px", borderRadius: 6, background: COLORS.bg, marginBottom: 3,
-                }}>
-                  <span style={{ fontSize: 12.5 }}>{s.name}</span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
-                    background: s.status === "ok" ? COLORS.longBg : COLORS.goldBg,
-                    color: s.status === "ok" ? COLORS.long : COLORS.gold,
-                  }}>{s.status === "ok" ? "✓ Live" : "⏳ Planned"}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 18 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>🔗 Webhook Health</h3>
-              {webhooks.map(w => (
-                <div key={w.id} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 12px", borderRadius: 6, background: COLORS.bg, marginBottom: 3,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: w.on ? COLORS.long : COLORS.dim }} />
-                    <span style={{ fontSize: 12.5 }}>{w.name}</span>
-                    <span style={{ fontSize: 9.5, color: COLORS.dim, textTransform: "capitalize" }}>{w.skin}</span>
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: w.on ? COLORS.long : COLORS.dim }}>{w.on ? "Active" : "Paused"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ═══ DISCORD ═══ */}
-        {view === "discord" && (
-          <div style={{ maxWidth: 640 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 3 }}>Discord Mode</h2>
-            <p style={{ fontSize: 10.5, color: COLORS.muted, marginBottom: 16 }}>For analysts who prefer posting in Discord.</p>
-            <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 18, marginBottom: 14 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>📝 Template Format</h3>
-              <pre style={{
-                background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                padding: 14, fontSize: 12, color: COLORS.long, fontFamily: MONO, lineHeight: 1.6, whiteSpace: "pre-wrap",
-              }}>{`$call LONG BTC/USDT
-entry: 95000
-sl: 93000
-tp: 97000, 99000, 101000
-leverage: 10x
-notes: Clean breakout above resistance`}</pre>
-              <p style={{ fontSize: 11.5, color: COLORS.sub, marginTop: 12, lineHeight: 1.5 }}>
-                Post in the designated call channel. Bot parses it, shows confirmation embed with ✅/❌, and distributes on confirm.
-              </p>
-            </div>
-            <div style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 18, marginBottom: 14 }}>
-              <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>📡 Update Commands</h3>
-              <pre style={{
-                background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                padding: 14, fontSize: 12, color: COLORS.gold, fontFamily: MONO, lineHeight: 1.8, whiteSpace: "pre-wrap",
-              }}>{`$update BRY-2026-0001 sl_be
-$update BRY-2026-0001 tp1_hit
-$update BRY-2026-0001 close "Profit at resistance"
-$update BRY-2026-0001 sl 94500`}</pre>
-            </div>
-            <div style={{
-              marginTop: 14, padding: "12px 16px", background: COLORS.goldBg,
-              border: `1px solid ${COLORS.gold}20`, borderRadius: 8,
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.gold }}>⏳ Status: Phase 2</div>
-              <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 3 }}>
-                Discord ingestion is designed and ready for backend implementation. Template format and parsing pipeline are defined in the architecture doc.
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
     </div>
-  );
+    {!done?<div className="ani d2" style={{background:"var(--card)",borderRadius:10,border:"1px solid var(--line)",padding:"clamp(16px,3vw,28px)"}}>
+      <h3 style={{fontSize:17,fontWeight:300,fontFamily:"var(--serif)",marginBottom:4}}>Join the waitlist</h3>
+      <p style={{fontSize:12,color:"var(--sub)",lineHeight:1.6,marginBottom:20}}>Limited per cuisine category.</p>
+      <Input label="Your Name" value={f.name} onChange={e=>u("name",e.target.value)} placeholder="Full name"/>
+      <Input label="Truck Name" value={f.truck} onChange={e=>u("truck",e.target.value)} placeholder="Your food truck"/>
+      <Input label="Email" value={f.email} onChange={e=>u("email",e.target.value)} placeholder="you@email.com" type="email"/>
+      <div style={{marginBottom:14}}><label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--sub)",marginBottom:6}}>Cuisine</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{cs.map(c=><Chip key={c} active={f.cuisine===c} onClick={()=>u("cuisine",c)}>{c}</Chip>)}</div></div>
+      <Input label="Why interested?" value={f.why} onChange={e=>u("why",e.target.value)} placeholder="About your truck..." textarea rows={3}/>
+      <Btn variant="accent" full onClick={()=>{if(f.name&&f.truck&&f.email&&f.cuisine)setDone(true);else{alert("Please fill in all required fields.")}}}>Submit Application</Btn>
+    </div>
+    :<div className="ani" style={{textAlign:"center",padding:"40px 0"}}>
+      <div style={{width:44,height:44,borderRadius:99,background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 20px",animation:"fadeUp .4s ease"}}>{"✓"}</div>
+      <h3 style={{fontSize:22,fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 10px"}}>Application received.</h3>
+      <p style={{fontSize:14,color:"var(--sub)",lineHeight:1.7,fontWeight:300}}>We'll reach out when verified tier launches.</p>
+      <div style={{marginTop:16,fontSize:12,color:"var(--mute)",fontFamily:"var(--mono)"}}>{f.truck} · {f.cuisine}</div>
+    </div>}
+  </FormPage>
+}
+
+function MemberLogin({onLogin}){
+  const[pw,setPw]=useState("");const[err,setErr]=useState(false);
+  return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div className="ani" style={{width:"100%",maxWidth:340,padding:24,borderRadius:10,background:"var(--card)",border:"1px solid var(--line)",textAlign:"center"}}>
+      <h2 style={{fontSize:20,fontWeight:300,fontFamily:"var(--serif)",margin:"0 0 4px"}}>Vendor Portal</h2>
+      <p style={{fontSize:12,color:"var(--sub)",marginBottom:20}}>Manage your profile and menu.</p>
+      {err&&<p style={{color:"#DC2626",fontSize:12,marginBottom:10}}>Invalid password.</p>}
+      <input value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(onLogin(pw)||void(setErr(true),setPw("")))} type="password" placeholder="Enter password" style={{width:"100%",padding:"11px 14px",borderRadius:8,border:"1px solid var(--line)",fontSize:14,marginBottom:10,textAlign:"center"}}/>
+      <Btn variant="accent" full onClick={()=>onLogin(pw)||void(setErr(true),setPw(""))}>Sign In</Btn>
+    </div>
+  </div>
+}
+
+function MemberDash({go}){
+  const[tab,setTab]=useState("profile");
+  const[profile,setProfile]=useState({name:"",cuisine:"",owner:"",phone:"",schedule:"",price:"",desc:""});
+  const[menu,setMenu]=useState([]);const[ni,sNi]=useState({name:"",price:"",desc:""});
+  const[scanning,setScanning]=useState(false);const[scanErr,setScanErr]=useState(null);
+  const fr=useRef(null);const up=(k,v)=>setProfile({...profile,[k]:v});
+  const scan=async(file)=>{if(!file)return;setScanErr(null);setScanning(true);const r=new FileReader();r.onload=async(ev)=>{const b=ev.target.result.split(",")[1];try{const resp=await fetch("/api/scan-menu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({base64:b,mediaType:file.type||"image/jpeg"})});const data=await resp.json();if(data.items?.length>0)setMenu(p=>[...p,...data.items]);else setScanErr("Couldn't parse items.")}catch(e){setScanErr("Failed.")}setScanning(false)};r.readAsDataURL(file)};
+  return<div style={{paddingTop:54}}>
+    <section style={{padding:"24px 20px 40px"}}><W style={{padding:0,maxWidth:920}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+        <div><h1 style={{fontSize:20,fontWeight:400,fontFamily:"var(--serif)"}}>Vendor Dashboard</h1><p style={{fontSize:12,color:"var(--sub)",marginTop:2}}>Profile, menu, and visibility.</p></div>
+        <Btn variant="ghost" size="sm" onClick={()=>go("/")}>{"←"} Site</Btn>
+      </div>
+      <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:"1px solid var(--line)"}}>{["profile","menu"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"10px 14px",fontSize:13,fontWeight:500,color:tab===t?"var(--ink)":"var(--mute)",borderBottom:tab===t?"2px solid var(--accent)":"2px solid transparent",textTransform:"capitalize"}}>{t}</button>)}</div>
+      {tab==="profile"&&<div style={{background:"var(--card)",borderRadius:10,border:"1px solid var(--line)",padding:"clamp(16px,3vw,28px)",maxWidth:520}}>
+        <h3 style={{fontSize:15,fontWeight:600,marginBottom:18}}>Truck Profile</h3>
+        <Input label="Truck Name" value={profile.name} onChange={e=>up("name",e.target.value)} placeholder="Your truck name"/>
+        <Input label="Cuisine" value={profile.cuisine} onChange={e=>up("cuisine",e.target.value)} placeholder="e.g. BBQ"/>
+        <Input label="Owner" value={profile.owner} onChange={e=>up("owner",e.target.value)} placeholder="Your name"/>
+        <Input label="Phone" value={profile.phone} onChange={e=>up("phone",e.target.value)} placeholder="(804) 555-0000"/>
+        <Input label="Schedule" value={profile.schedule} onChange={e=>up("schedule",e.target.value)} placeholder="e.g. Tue–Sat"/>
+        <Input label="Description" value={profile.desc} onChange={e=>up("desc",e.target.value)} placeholder="About your truck..." textarea rows={3}/>
+        <Btn variant="accent" full>Save Profile</Btn>
+      </div>}
+      {tab==="menu"&&<div style={{maxWidth:580}}>
+        <h3 style={{fontSize:15,fontWeight:600,marginBottom:16}}>Menu ({menu.length})</h3>
+        <div style={{background:"var(--card)",borderRadius:10,border:"1px dashed var(--line)",padding:20,textAlign:"center",marginBottom:16,cursor:"pointer"}} onClick={()=>fr.current?.click()}>
+          <input ref={fr} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])scan(e.target.files[0])}}/>
+          {scanning?<p style={{fontSize:13,color:"var(--sub)"}}>Scanning...</p>:<><p style={{fontSize:13,fontWeight:500,color:"var(--accent)"}}>Scan menu from photo</p><p style={{fontSize:11,color:"var(--mute)"}}>Upload a photo. AI reads it.</p></>}
+        </div>
+        {scanErr&&<p style={{color:"#DC2626",fontSize:12,marginBottom:12}}>{scanErr}</p>}
+        {menu.map((m,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line)"}}><div><div style={{fontSize:13,fontWeight:500}}>{m.name}</div>{m.desc&&<div style={{fontSize:11,color:"var(--mute)"}}>{m.desc}</div>}</div><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:13,fontWeight:600,fontFamily:"var(--mono)"}}>${m.price}</span><button onClick={()=>setMenu(menu.filter((_,j)=>j!==i))} style={{fontSize:11,color:"var(--mute)",padding:"3px 6px",borderRadius:4,border:"1px solid var(--line)"}}>x</button></div></div>)}
+        <div style={{background:"var(--tint)",borderRadius:8,padding:14,marginTop:16}}>
+          <p style={{fontSize:11,fontWeight:500,color:"var(--sub)",marginBottom:8}}>ADD MANUALLY</p>
+          <div style={{display:"flex",gap:6,marginBottom:6}}><input value={ni.name} onChange={e=>sNi({...ni,name:e.target.value})} placeholder="Item" style={{flex:1,padding:"9px 10px",borderRadius:6,border:"1px solid var(--line)",fontSize:13}}/><input value={ni.price} onChange={e=>sNi({...ni,price:e.target.value})} placeholder="$" style={{width:60,padding:"9px 10px",borderRadius:6,border:"1px solid var(--line)",fontSize:13}}/></div>
+          <Btn variant="accent" full size="sm" onClick={()=>{if(ni.name&&ni.price){setMenu([...menu,{name:ni.name,price:Number(ni.price),desc:ni.desc}]);sNi({name:"",price:"",desc:""})}}}>Add</Btn>
+        </div>
+      </div>}
+    </W></section>
+  </div>
+}
+
+function AdminLogin({onLogin}){const[pw,setPw]=useState("");const[e,sE]=useState(false);return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0A0A0A",padding:20}}><div className="ani" style={{width:"100%",maxWidth:320,padding:28,borderRadius:10,background:"#141414",border:"1px solid #222",textAlign:"center"}}><h2 style={{fontSize:18,fontWeight:500,color:"#fff",marginBottom:20}}>Admin Access</h2>{e&&<p style={{color:"#EF4444",fontSize:12,marginBottom:10}}>Invalid.</p>}<input value={pw} onChange={ev=>setPw(ev.target.value)} onKeyDown={ev=>ev.key==="Enter"&&(onLogin(pw)||void(sE(true),setPw("")))} type="password" placeholder="Password" style={{width:"100%",padding:"11px 14px",borderRadius:8,border:"1px solid #333",fontSize:14,background:"#0A0A0A",color:"#fff",marginBottom:10,textAlign:"center"}}/><button onClick={()=>onLogin(pw)||void(sE(true),setPw(""))} style={{width:"100%",padding:11,borderRadius:8,background:"#fff",color:"#000",fontSize:14,fontWeight:500}}>Enter</button></div></div>}
+
+function PinGate({onUnlock,onCancel}){const[pin,setPin]=useState("");const[e,sE]=useState(false);return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0A0A0A",padding:20}}><div style={{width:"100%",maxWidth:280,textAlign:"center"}}><h2 style={{fontSize:16,fontWeight:500,color:"#fff",marginBottom:20}}>Security PIN</h2>{e&&<p style={{color:"#EF4444",fontSize:12,marginBottom:10}}>Invalid PIN.</p>}<input value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(pin===SP?onUnlock():(sE(true),setPin("")))} type="password" maxLength={4} placeholder="••••" style={{width:"100%",padding:12,borderRadius:8,border:"1px solid #333",fontSize:22,letterSpacing:10,background:"#0A0A0A",color:"#fff",textAlign:"center",marginBottom:14}}/><div style={{display:"flex",gap:8}}><button onClick={onCancel} style={{flex:1,padding:10,borderRadius:8,border:"1px solid #333",color:"#666",fontSize:13}}>Cancel</button><button onClick={()=>pin===SP?onUnlock():(sE(true),setPin(""))} style={{flex:1,padding:10,borderRadius:8,background:"#fff",color:"#000",fontSize:13,fontWeight:500}}>Unlock</button></div></div></div>}
+
+function AdminDash({go}){return<div style={{minHeight:"100vh",background:"#0A0A0A",padding:"40px 20px",color:"#fff"}}><W style={{maxWidth:920,padding:0}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}><h1 style={{fontSize:18,fontWeight:500}}>FAFTRVA Admin</h1><button onClick={()=>go("/")} style={{color:"#666",fontSize:12,border:"1px solid #333",padding:"7px 14px",borderRadius:8}}>{"←"} Site</button></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:32}}>{[["Event Submissions","0","Pending"],["Vendor Applications","0","Pending"],["Waitlist","0","Applications"]].map(([t,v,l])=><div key={t} style={{background:"#141414",borderRadius:8,padding:16,border:"1px solid #222"}}><div style={{fontSize:10,color:"#666",marginBottom:6,fontFamily:"var(--mono)"}}>{t}</div><div style={{fontSize:24,fontWeight:300}}>{v}</div><div style={{fontSize:10,color:"#444",marginTop:2}}>{l}</div></div>)}</div><p style={{color:"#444",fontSize:12}}>Populates as submissions arrive.</p></W></div>}
+
+function Footer({go}){
+  return<footer style={{borderTop:"1px solid var(--line)",padding:"32px 20px 24px"}}>
+    <W style={{padding:0}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"clamp(20px,4vw,40px)",marginBottom:24}}>
+        <div style={{minWidth:200,flex:"2 1 200px"}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:5}}><span style={{fontFamily:"var(--serif)",fontSize:15,fontStyle:"italic"}}>find a</span><span style={{fontFamily:"var(--serif)",fontSize:15,fontWeight:500,color:"var(--accent)"}}>food truck</span></div>
+          <p style={{fontSize:11,color:"var(--sub)",marginTop:6,lineHeight:1.6,fontWeight:300}}>Richmond's booking network for food trucks and events.</p>
+          <p style={{fontSize:10,color:"var(--mute)",marginTop:4}}>findafoodtruckrva.com</p>
+          <p style={{fontSize:10,color:"var(--sub)",marginTop:8,fontFamily:"var(--mono)"}}>Laurence Ash LLC</p>
+        </div>
+        {[["Network",[["Submit Event","/submit"],["Join as Vendor","/join"],["Verified Access","/access"]]],["Account",[["Vendor Login","/member"],["Admin","/admin"]]]].map(([t,items])=>
+          <div key={t} style={{minWidth:120}}>
+            <h4 style={{fontSize:10,fontWeight:500,color:"var(--mute)",letterSpacing:".06em",marginBottom:10}}>{t.toUpperCase()}</h4>
+            {items.map(([l,to])=><div key={l} onClick={()=>go(to)} style={{color:"var(--sub)",fontSize:12,cursor:"pointer",padding:"3px 0",fontWeight:300,transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color="var(--ink)"} onMouseLeave={e=>e.currentTarget.style.color="var(--sub)"}>{l}</div>)}
+          </div>
+        )}
+      </div>
+      <div style={{paddingTop:12,borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between"}}>
+        <span style={{color:"var(--mute)",fontSize:10,fontFamily:"var(--mono)"}}>© 2026 FAFTRVA</span>
+        <span style={{color:"var(--mute)",fontSize:10}}>Richmond, VA</span>
+      </div>
+    </W>
+  </footer>
+}
+
+export default function App(){
+  const{route,go}=useRouter();
+  const[m,sM]=useState(false);const[a,sA]=useState(false);const[p,sP]=useState(false);
+  if(route==="/member"){if(!m)return<><style>{G}</style><MemberLogin onLogin={pw=>{if(pw===MP){sM(true);return true}return false}}/></>;return<><style>{G}</style><MemberDash go={go}/></>}
+  if(route==="/admin"){if(!a)return<><style>{G}</style><AdminLogin onLogin={pw=>{if(pw===AP){sA(true);return true}return false}}/></>;if(!p)return<><style>{G}</style><PinGate onUnlock={()=>sP(true)} onCancel={()=>{sA(false);go("/")}}/></>;return<><style>{G}</style><AdminDash go={go}/></>}
+  return<div style={{background:"var(--bg)",minHeight:"100vh"}}><style>{G}</style><Nav go={go} route={route}/>
+    {route==="/"&&<><HomePage go={go}/><Footer go={go}/></>}
+    {route==="/submit"&&<><SubmitEvent go={go}/><Footer go={go}/></>}
+    {route==="/join"&&<><JoinVendor go={go}/><Footer go={go}/></>}
+    {route==="/access"&&<><AccessPage go={go}/><Footer go={go}/></>}
+  </div>
 }
